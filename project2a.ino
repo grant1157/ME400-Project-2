@@ -1,6 +1,17 @@
 #include "lcdhelperv2.h"
 #include "irhelper.h"
 #include <math.h>
+//pins
+const int lencoder = 10;
+const int lenenablepwm = 46;
+const int lphasedir = 12;
+volatile unsigned long leftEncoderCount = 0;
+const int lpwmChannel = 1;
+//setup pwm
+const int pwmFreq = 496;
+const int pwmResolution = 8;
+const int maxDutyCycle = (int)pow(2, pwmResolution) - 1;
+//make variables for the right motor
 //
 //make a simple change to test Git Integration
 //
@@ -83,6 +94,7 @@ void setup()
     // Show main menu when Arduino starts
     // for the 1st time or on reset.
     ShowDisplay(SC_MAIN, ' ', ' ', true);
+    ledcSetup(lpwmChannel, pwmFreq)
     // Get width of TFT display in pixels
     xScreen = oLCD.getViewportWidth();
     // Get height of TFT display in pixels
