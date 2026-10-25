@@ -3,7 +3,7 @@
 #include <math.h>
 //
 //  Create an instance of the lcdhelper class named oLCD
-// test test test TEST
+// test test test
 //
 lcdhelper oLCD(ILI9163_4L, 3, 2, 9, 10, 7); // this a test, test, test. test #222222222222222
 // test bella
