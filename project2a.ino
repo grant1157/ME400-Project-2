@@ -18,9 +18,10 @@ const int maxDutyCycle = (int)pow(2, pwmResolution) - 1;
 int xyz = 0;
 //
 //  Create an instance of the lcdhelper class named oLCD
+// test test test
 //
-lcdhelper oLCD(ILI9163_4L, 3, 2, 9, 10, 7);
-//
+lcdhelper oLCD(ILI9163_4L, 3, 2, 9, 10, 7); // this a test, test, test. test #222222222222222
+// test bella
 //  Declare a sprite so we can display a rotated label on the TFT.
 //
 TFT_eSprite spr = TFT_eSprite(&oLCD); // Sprite object
