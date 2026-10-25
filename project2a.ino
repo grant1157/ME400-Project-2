@@ -2,6 +2,10 @@
 #include "irhelper.h"
 #include <math.h>
 //
+//make a simple change to test Git Integration
+//
+int xyz = 0;
+//
 //  Create an instance of the lcdhelper class named oLCD
 //
 lcdhelper oLCD(ILI9163_4L, 3, 2, 9, 10, 7);
