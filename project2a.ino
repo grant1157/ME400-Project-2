@@ -2,6 +2,7 @@
 #include "irhelper.h"
 #include <math.h>
 //pins
+
 const int lencoder = 10;
 const int lenenablepwm = 46;
 const int lphasedir = 12;
@@ -57,7 +58,32 @@ void clearText(int32_t x, int32_t y, int32_t width, uint16_t color)
 //  Option1 code
 //
 void Option1(char optionstate, char keypressed, bool initdisplay){
-   
+   char text[20];
+   static String aval = "";
+   oLCD.LCDInitialize(PORTRAIT, initdisplay);
+
+   oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
+   sprintf(text, "DUTY CYCLE");oLCD.print(text, CENTER, 15);
+
+   if(optionstate = 'A' && keypressed == ' '){
+    aval = "";
+    clearText(CENTER, 32, 20, RCB_BLACK);
+   }
+   else if ( option == 'A' && keypressed != ' '){
+    aval = aval + keypressed;
+    clearText(CENTER, 32,20 RCB_BLACK);
+    oLCD.setBackColor(RCB_BLACK);
+    oLCD.printNumI(aval.toInt(), CENTER 32, 3, ' ');
+   }
+   else{
+        leftEncoderCount = 0;
+        digtalWrite(lphasedir, HIGH);
+        ledWrite(lpwmChannel, (float)aval.toInt()*maxDutyCycle/100.0);
+
+        while(leftEncoderCount < counttotarget){
+
+        }
+   }
 }
 //
 //  Option2 code
@@ -70,7 +96,20 @@ void Option2(char optionstate, char keypressed, bool initdisplay)
 //  Option3 code
 //
 void Option3(char optionstate, char keypressed, bool initdisplay){
-    
+    oLCD.LCDInitialize(LANDSCAPE, initdisplay);
+    float r = (xScreen - mScreen/)/2.0;
+    float xC = xScreen/2;
+    float yC = yScreen;
+
+    oLCD.fillCircle(xC, yC, r-2, RCB_PURPLE);
+
+    oLCD.drawCircle(xC, yC, r, RCB_WHITE);
+
+    lOLD.drawLine(xC, yScreen, x1, y1, RCB_WHITE)
+
+    for(int i=15; i <= 165; i++){
+        int distance = calculateDistance(trigPin, echoPin);
+    }
 }
 //
 //  Option4 code
@@ -95,7 +134,12 @@ void setup()
     // Show main menu when Arduino starts
     // for the 1st time or on reset.
     ShowDisplay(SC_MAIN, ' ', ' ', true);
-    ledcSetup(lpwmChannel, pwmFreq)
+
+    ledcSetup(lpwmChannel, pwmFreq, pwmResoluton);
+    ledcAttachPin(lenablepwm, lpwnChannel);
+    ledcWrite(lpwmChannel, 0);
+
+    attachInterupt(digitalPinToInterrupt(lencoder),leftEncoderISR, RISING);
     // Get width of TFT display in pixels
     xScreen = oLCD.getViewportWidth();
     // Get height of TFT display in pixels
@@ -317,7 +361,9 @@ void DisplayRotatedText(int x, int y){
 // *************************************************************************************
 // START: OPTION1 SUPPORT
 // *************************************************************************************
-
+void LeftEncoderISR(){
+    leftEncoderCount++;
+}
 // *************************************************************************************
 // END: OPTION1 SUPPORT
 // *************************************************************************************
