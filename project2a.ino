@@ -3,15 +3,15 @@
 #include <math.h>
 //pins
 
-const int lencoder = 10;
-const int lenenablepwm = 46;
-const int lphasedir = 12;
-volatile unsigned long leftEncoderCount = 0;
-const int lpwmChannel = 1;
-//setup pwm
-const int pwmFreq = 496;
-const int pwmResolution = 8;
-const int maxDutyCycle = (int)pow(2, pwmResolution) - 1;
+// const int lencoder = 10;
+// const int lenenablepwm = 46;
+// const int lphasedir = 12;
+// volatile unsigned long leftEncoderCount = 0;
+// const int lpwmChannel = 1;
+// //setup pwm
+// const int pwmFreq = 496;
+// const int pwmResolution = 8;
+// const int maxDutyCycle = (int)pow(2, pwmResolution) - 1;
 //make variables for the right motor
 //
 //make a simple change to test Git Integration
@@ -58,32 +58,32 @@ void clearText(int32_t x, int32_t y, int32_t width, uint16_t color)
 //  Option1 code
 //
 void Option1(char optionstate, char keypressed, bool initdisplay){
-   char text[20];
-   static String aval = "";
-   oLCD.LCDInitialize(PORTRAIT, initdisplay);
+//    char text[20];
+//    static String aval = "";
+//    oLCD.LCDInitialize(PORTRAIT, initdisplay);
 
-   oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
-   sprintf(text, "DUTY CYCLE");oLCD.print(text, CENTER, 15);
+//    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
+//    sprintf(text, "DUTY CYCLE");oLCD.print(text, CENTER, 15);
 
-   if(optionstate = 'A' && keypressed == ' '){
-    aval = "";
-    clearText(CENTER, 32, 20, RCB_BLACK);
-   }
-   else if ( option == 'A' && keypressed != ' '){
-    aval = aval + keypressed;
-    clearText(CENTER, 32,20 RCB_BLACK);
-    oLCD.setBackColor(RCB_BLACK);
-    oLCD.printNumI(aval.toInt(), CENTER 32, 3, ' ');
-   }
-   else{
-        leftEncoderCount = 0;
-        digtalWrite(lphasedir, HIGH);
-        ledWrite(lpwmChannel, (float)aval.toInt()*maxDutyCycle/100.0);
+//    if(optionstate = 'A' && keypressed == ' '){
+//     aval = "";
+//     clearText(CENTER, 32, 20, RCB_BLACK);
+//    }
+//    else if ( option == 'A' && keypressed != ' '){
+//     aval = aval + keypressed;
+//     clearText(CENTER, 32,20 RCB_BLACK);
+//     oLCD.setBackColor(RCB_BLACK);
+//     oLCD.printNumI(aval.toInt(), CENTER 32, 3, ' ');
+//    }
+//    else{
+//         leftEncoderCount = 0;
+//         digtalWrite(lphasedir, HIGH);
+//         ledWrite(lpwmChannel, (float)aval.toInt()*maxDutyCycle/100.0);
 
-        while(leftEncoderCount < counttotarget){
+//         while(leftEncoderCount < counttotarget){
 
-        }
-   }
+//         }
+//    }
 }
 //
 //  Option2 code
@@ -96,20 +96,20 @@ void Option2(char optionstate, char keypressed, bool initdisplay)
 //  Option3 code
 //
 void Option3(char optionstate, char keypressed, bool initdisplay){
-    oLCD.LCDInitialize(LANDSCAPE, initdisplay);
-    float r = (xScreen - mScreen/)/2.0;
-    float xC = xScreen/2;
-    float yC = yScreen;
+    // oLCD.LCDInitialize(LANDSCAPE, initdisplay);
+    // float r = (xScreen - mScreen/)/2.0;
+    // float xC = xScreen/2;
+    // float yC = yScreen;
 
-    oLCD.fillCircle(xC, yC, r-2, RCB_PURPLE);
+    // oLCD.fillCircle(xC, yC, r-2, RCB_PURPLE);
 
-    oLCD.drawCircle(xC, yC, r, RCB_WHITE);
+    // oLCD.drawCircle(xC, yC, r, RCB_WHITE);
 
-    lOLD.drawLine(xC, yScreen, x1, y1, RCB_WHITE)
+    // lOLD.drawLine(xC, yScreen, x1, y1, RCB_WHITE)
 
-    for(int i=15; i <= 165; i++){
-        int distance = calculateDistance(trigPin, echoPin);
-    }
+    // for(int i=15; i <= 165; i++){
+    //     int distance = calculateDistance(trigPin, echoPin);
+    // }
 }
 //
 //  Option4 code
@@ -135,11 +135,11 @@ void setup()
     // for the 1st time or on reset.
     ShowDisplay(SC_MAIN, ' ', ' ', true);
 
-    ledcSetup(lpwmChannel, pwmFreq, pwmResoluton);
-    ledcAttachPin(lenablepwm, lpwnChannel);
-    ledcWrite(lpwmChannel, 0);
+    // ledcSetup(lpwmChannel, pwmFreq, pwmResoluton);
+    // ledcAttachPin(lenablepwm, lpwnChannel);
+    // ledcWrite(lpwmChannel, 0);
 
-    attachInterupt(digitalPinToInterrupt(lencoder),leftEncoderISR, RISING);
+    //attachInterupt(digitalPinToInterrupt(lencoder),leftEncoderISR, RISING);
     // Get width of TFT display in pixels
     xScreen = oLCD.getViewportWidth();
     // Get height of TFT display in pixels
@@ -248,8 +248,11 @@ void ShowDisplay(screen val, char optionstate, char keypressed, bool initdisplay
         oLCD.LCDInitialize(LANDSCAPE, initdisplay);
         oLCD.print("SELECT OPTION", 10, 10);
         oLCD.print("1. CALIBRATE DRIVE", 10, 24);
+        oLCD.setTextColor(RCB_RED); 
         oLCD.print("2. SEEK TARGET", 10, 38);
+        oLCD.setTextColor(RCB_WHITE); 
         oLCD.print("3. LOCATE TARGET", 10, 52);
+        oLCD.setTextColor(RCB_RED);
         oLCD.print("4. NAVIGATE", 10, 66);
     }
     if (val == SC_SUB1)
@@ -259,8 +262,8 @@ void ShowDisplay(screen val, char optionstate, char keypressed, bool initdisplay
     }
     else if (val == SC_SUB2)
     {
-        Serial.println("option2");
-        Option2(optionstate, keypressed, initdisplay);
+        //Serial.println("option2");
+        //Option2(optionstate, keypressed, initdisplay);
     }
     else if (val == SC_SUB3)
     {
@@ -269,8 +272,8 @@ void ShowDisplay(screen val, char optionstate, char keypressed, bool initdisplay
     }
     else if (val == SC_SUB4)
     {
-        Serial.println("option4");
-        Option4(optionstate, keypressed, initdisplay);
+        //Serial.println("option4");
+        //Option4(optionstate, keypressed, initdisplay);
     }
 }
 // *************************************************************************************
@@ -361,9 +364,9 @@ void DisplayRotatedText(int x, int y){
 // *************************************************************************************
 // START: OPTION1 SUPPORT
 // *************************************************************************************
-void LeftEncoderISR(){
-    leftEncoderCount++;
-}
+// void LeftEncoderISR(){
+//     leftEncoderCount++;
+// }
 // *************************************************************************************
 // END: OPTION1 SUPPORT
 // *************************************************************************************
