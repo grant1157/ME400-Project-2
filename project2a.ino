@@ -3,26 +3,48 @@
 #include <math.h>
 //pins
 
-// const int lencoder = 10;
-// const int lenenablepwm = 46;
-// const int lphasedir = 12;
-// volatile unsigned long leftEncoderCount = 0;
-// const int lpwmChannel = 1;
-// //setup pwm
-// const int pwmFreq = 496;
-// const int pwmResolution = 8;
-// const int maxDutyCycle = (int)pow(2, pwmResolution) - 1;
+//setup pwm
+const int pwmFreq = 496;
+const int pwmResolution = 8;
+const int maxDutyCycle = (int)pow(2, pwmResolution) - 1;
+
+//makes variables for the left motor
+const int lencoder = 10;
+const int lenenablepwm = 46;
+const int lphasedir = 12;
+volatile unsigned long leftEncoderCount = 0;
+const int lpwmChannel = 1;
+
 //make variables for the right motor
-//
+const int rencoder = 8;
+const int renablepwm = 14;
+const int rphasedir = 13;
+volatile unsigned long rightEncoderCount = 0;
+const int rpwmChannel = 2;
+
+//step 12 for switches
+const int sw1 = 18;
+const int sw2 = 17;
+const int sw3 = 16;
+const int sw4 = 15;
+
+//step 13
+const int tiltpin = 35;
+const int servopin = 36;
+
+//step14
+const int ECHOpin = 37;
+const int TRIGpin = 38;
+
 //make a simple change to test Git Integration
-//
+
 int xyz = 0;
 //
 //  Create an instance of the lcdhelper class named oLCD
-// test test test
+
 //
-lcdhelper oLCD(ILI9163_4L, 3, 2, 9, 10, 7); // this a test, test, test. test #222222222222222
-// test bella
+lcdhelper oLCD(ILI9163_4L, 3, 2, 9, 10, 7); 
+
 //  Declare a sprite so we can display a rotated label on the TFT.
 //
 TFT_eSprite spr = TFT_eSprite(&oLCD); // Sprite object
@@ -63,7 +85,8 @@ void Option1(char optionstate, char keypressed, bool initdisplay){
 //    oLCD.LCDInitialize(PORTRAIT, initdisplay);
 
 //    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
-//    sprintf(text, "DUTY CYCLE");oLCD.print(text, CENTER, 15);
+//    sprintf(text, "DUTY CYCLE");
+//    oLCD.print(text, CENTER, 15);
 
 //    if(optionstate = 'A' && keypressed == ' '){
 //     aval = "";
@@ -138,7 +161,18 @@ void setup()
     // ledcSetup(lpwmChannel, pwmFreq, pwmResoluton);
     // ledcAttachPin(lenablepwm, lpwnChannel);
     // ledcWrite(lpwmChannel, 0);
-
+    
+    //doing pinmode for steps 11-16
+    pinMode(lencoder, INPUT_PULLDOWN);
+    pinMode(rencoder, INPUT_PULLDOWN);
+    pinMode(sw1, INPUT_PULLUP);
+    pinMode(sw2, INPUT_PULLUP);
+    pinMode(sw3, INPUT_PULLUP);
+    pinMode(sw4, INPUT_PULLUP);
+    pinMode(tiltpin, OUTPUT);
+    pinMode(servopin, OUTPUT);
+    pinMode(ECHOpin, INPUT);
+    pinMode(TRIGpin, OUTPUT);
     //attachInterupt(digitalPinToInterrupt(lencoder),leftEncoderISR, RISING);
     // Get width of TFT display in pixels
     xScreen = oLCD.getViewportWidth();
