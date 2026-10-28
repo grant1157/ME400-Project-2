@@ -161,6 +161,11 @@ void setup()
     // ledcSetup(lpwmChannel, pwmFreq, pwmResoluton);
     // ledcAttachPin(lenablepwm, lpwnChannel);
     // ledcWrite(lpwmChannel, 0);
+
+    pinMode(tiltpin, OUTPUT);
+    pinMode(servopin, OUTPUT);
+    servowrite(tiltpin, 90, 10);
+    servowrite(servopin, 15, 10);
     
     //doing pinmode for steps 11-16
     pinMode(lencoder, INPUT_PULLDOWN);
