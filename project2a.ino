@@ -79,34 +79,100 @@ void clearText(int32_t x, int32_t y, int32_t width, uint16_t color)
 //
 //  Option1 code
 //
-void Option1(char optionstate, char keypressed, bool initdisplay){
-//    char text[20];
-//    static String aval = "";
-//    oLCD.LCDInitialize(PORTRAIT, initdisplay);
+void Option1(char optionstate, char keypressed, bool initdisplay)
+{
+    char text[20];
+    static String Dcycle = "";
+    oLCD.LCDInitialize(LANDSCAPE, initdisplay);
+    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
 
-//    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
-//    sprintf(text, "DUTY CYCLE");
-//    oLCD.print(text, CENTER, 15);
-
-//    if(optionstate = 'A' && keypressed == ' '){
-//     aval = "";
-//     clearText(CENTER, 32, 20, RCB_BLACK);
-//    }
-//    else if ( option == 'A' && keypressed != ' '){
-//     aval = aval + keypressed;
-//     clearText(CENTER, 32,20 RCB_BLACK);
-//     oLCD.setBackColor(RCB_BLACK);
-//     oLCD.printNumI(aval.toInt(), CENTER 32, 3, ' ');
-//    }
-//    else{
-//         leftEncoderCount = 0;
-//         digtalWrite(lphasedir, HIGH);
-//         ledWrite(lpwmChannel, (float)aval.toInt()*maxDutyCycle/100.0);
-
-//         while(leftEncoderCount < counttotarget){
-
-//         }
-//    }
+    if (optionstate == 'A') // First screen of option 1 
+    {
+        sprintf(text, "DUTY CYCLE");
+        oLCD.print(text, CENTER, 15);
+        sprintf(text, "PRESS"); 
+        oLCD.print(text, CENTER, 52);
+        sprintf(text, "<RETURN>");
+        oLCD.print(text, CENTER, 68);
+        sprintf(text, "WHEN"); 
+        oLCD.print(text, CENTER, 84);
+        sprintf(text, "READY");
+        oLCD.print(text, CENTER, 100);
+        if (keypressed == ' ') // If no key pressed, no change
+        {
+            Dcycle = "";
+            clearText(CENTER, 32, 48, RCB_BLACK);
+        }
+        else if (keypressed == 'R' && Dcycle.length() != 2) // Checks if duty cycle entered is large enough before using in calcs NOT WORKING
+        {
+            optionstate = 'A'; 
+        }
+        else if (keypressed != ' ') // If key besides RETURN is pressed 
+        {
+            if (keypressed == 'B') // Backspace function
+            {
+                if (Dcycle.length() > 0)
+                {
+                    Dcycle.remove(Dcycle.length() - 1);
+                }
+            }
+            else if (Dcycle.length() == 0) // Invalid number/entry stipulations
+            {
+                if (keypressed == '0' || keypressed == '1' || keypressed == '2' || keypressed == '3' || keypressed == '8' || keypressed == '9')
+                {
+                    Dcycle = "";
+                }
+                else if (keypressed == '4' || keypressed == '5' ||  keypressed == '6' || keypressed == '7')
+                {
+                    Dcycle = Dcycle + keypressed;
+                }
+                else if (keypressed == 'B')
+                {
+                    Dcycle = "";
+                }
+            }
+            else if (Dcycle == "7" && keypressed != ' ' && keypressed != 'B') // Default every 2-digit # starting with 7 to 70
+            {
+                Dcycle = "70";
+            }
+            else if (Dcycle == "4" && keypressed != ' ' || Dcycle == "5" && keypressed != ' ' || Dcycle == "6" && keypressed != ' ') // Build string with #s
+            {
+                if (keypressed != 'B')
+                {
+                    Dcycle = Dcycle + keypressed; 
+                } 
+            }
+            else if (Dcycle.length() == 2) // #s above 2-digits not allowed 
+            {
+                Dcycle = Dcycle;
+            }
+            clearText(CENTER, 32, 20, RCB_BLACK);
+            oLCD.setBackColor(RCB_BLACK);
+            oLCD.printNumI(Dcycle.toInt(), CENTER, 32, 3, ' ');
+        }
+    }
+    else if (optionstate == 'B' && keypressed == ' ') // second screen of option 2, print output NOT WORKING
+    {
+        leftEncoderCount = 0;
+        digitalWrite(lphasedir, HIGH);
+        ledcWrite(lpwmChannel, (float)Dcycle.toInt() * maxDutyCycle / 100.0);
+        
+        oLCD.LCDInitialize(LANDSCAPE, initdisplay);
+        sprintf(text, "RIGHT DUTY CYCLE"); // DOES NOT WORK CAN'T FIGURE OUT WHY 
+        oLCD.print(text, CENTER, 15);
+        sprintf(text, "PRESS"); 
+        oLCD.print(text, CENTER, 52);
+        sprintf(text, "<RETURN>");
+        oLCD.print(text, CENTER, 68);
+        sprintf(text, "WHEN"); 
+        oLCD.print(text, CENTER, 84);
+        sprintf(text, "READY");
+        oLCD.print(text, CENTER, 100);
+        
+        // while (leftEncoderCount < counttotarget) // Need to do math and complete while loop for motion 
+        // {
+        // }
+    }
 }
 //
 //  Option2 code
