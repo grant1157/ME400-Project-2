@@ -47,9 +47,12 @@ const double CPR = 12; //counts on the encoder per full wheel rotation
 const double TG = 100.0; //distance used in the calibration run (cm)
 double rdutyStraight; //helps keeps the robot straight
 
-const int PASSES = ?; //NEED TO TIME HOW OFTEN THE SCREEN UPDATES SOMEHOW (it is supposed to be the number of times the correction loop will run between the screen updating.)
+const int PASSES = 0; //NEED TO TIME HOW OFTEN THE SCREEN UPDATES SOMEHOW (it is supposed to be the number of times the correction loop will run between the screen updating.)
  
-
+//functions
+void degreeIncrements();
+void servowrite(int pin, int angle, int numpulses);
+int calculateDistance(int tPin, int ePin);
 
 
 int xyz = 0;
@@ -193,7 +196,7 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
         }
     }
     // second screen of option 1
-    else if (optionstate == 'B' ) 
+    else if (optionstate == 'B') 
     {
         //circumference (cm)
         double circumference = pivalue * WDIA;
@@ -296,6 +299,9 @@ void Option3(char optionstate, char keypressed, bool initdisplay){
     // for(int i=15; i <= 165; i++){
     //     int distance = calculateDistance(trigPin, echoPin);
     // }
+    degreeIncrements();
+
+    return;
 }
 //
 //  Option4 code
@@ -332,8 +338,8 @@ void setup()
 
     pinMode(tiltpin, OUTPUT);
     pinMode(servopin, OUTPUT);
-    servowrite(tiltpin, 90, 10);
-    servowrite(servopin, 15, 10);
+    servowrite(tiltpin, 15, 10);
+    servowrite(servopin, 90, 10);
     
     //doing pinmode for steps 11-16
     pinMode(lencoder, INPUT_PULLDOWN);
@@ -599,6 +605,21 @@ void RightEncoderISR(){
 //
 //  Option 3: Function to draw a box.
 //
+void degreeIncrements(){
+    for(int angle = 15; angle <= 165; angle = angle + 2){
+        servowrite(tiltpin, 0, 10);
+        servowrite(servopin, angle, 3);
+        int distance = calculateDistance(TRIGpin, ECHOpin);
+    }
+    delay(100);
+    for(int angle = 165; angle >= 15; angle = angle - 2){
+        servowrite(tiltpin, 0, 10);
+        servowrite(servopin, angle, 3);
+        int distance = calculateDistance(TRIGpin, ECHOpin);
+    }
+    delay(100);
+    servowrite(servopin, 90, 10);
+}
 void DrawBox(int x1, int y1, int x2, int y2, uint32_t color)
 {
     oLCD.fillRoundRect(x1, y1, x2, y2, 3, color);
