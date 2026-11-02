@@ -40,12 +40,14 @@ const int ECHOpin = 37;
 const int TRIGpin = 38;
 
 //stuff for option 1
+void UpdateDisplay(int Rduty, int LenC, int RenC, int Error);
+long DriveError = 0;
 
 const double pivalue = 3.141593;
-const double WDIA = 6.5; //wheel diameter(cm)
-const double CPR = 12; //counts on the encoder per full wheel rotation
-const double TG = 100.0; //distance used in the calibration run (cm)
-double rdutyStraight; //helps keeps the robot straight
+const double WDIA = 6.5; // wheel diameter(cm)
+const double CPR = 20.0; // counts on the encoder per full wheel rotation
+const double TG = 100.0; // distance used in the calibration run (cm)
+double rdutyStraight = 0.0;    // right dutycycle
 
 const int PASSES = 0; //NEED TO TIME HOW OFTEN THE SCREEN UPDATES SOMEHOW (it is supposed to be the number of times the correction loop will run between the screen updating.)
  
@@ -98,70 +100,83 @@ void clearText(int32_t x, int32_t y, int32_t width, uint16_t color)
 //
 void Option1(char optionstate, char keypressed, bool initdisplay)
 {
-    //holds the words before they are printed
+    // holds the words before they are printed
     char text[20];
 
-    //static is important because it will stay what it previously was as we progress
+    // static is important because it will stay what it previously was as we progress
     static String Dcycle = "";
-    
-    //clears the screen and sets the text/background colors
+    static bool DriveMode = false;
+
+    if (DriveMode == false)
+    {
+    // clears the screen and sets the text/background colors
     oLCD.LCDInitialize(LANDSCAPE, initdisplay);
     oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
-
-    //if return is pressed with less than 2 digits it will stay on the screen
-    if (optionstate == 'B' && Dcycle.length() != 2){
-        //A for entry screen code
-        optionstate = 'A';
-        oLCD.OPTION_STATE = 'A'; 
     }
 
-    if (optionstate == 'A') 
+    // if return is pressed with less than 2 digits it will stay on the screen
+    if (optionstate == 'B' && Dcycle.length() != 2)
     {
-        //entry screen text
+        // A for entry screen code
+        optionstate = 'A';
+        oLCD.OPTION_STATE = 'A';
+        DriveMode = false;
+    }
+    
+    if(DriveMode == true)
+    {
+        optionstate = 'B'; 
+    }
+
+    if (optionstate == 'A')
+    {
+        // entry screen text
         sprintf(text, "DUTY CYCLE");
         oLCD.print(text, CENTER, 15);
-        sprintf(text, "PRESS"); 
+        sprintf(text, "PRESS");
         oLCD.print(text, CENTER, 52);
         sprintf(text, "<RETURN>");
         oLCD.print(text, CENTER, 68);
-        sprintf(text, "WHEN"); 
+        sprintf(text, "WHEN");
         oLCD.print(text, CENTER, 84);
         sprintf(text, "READY");
         oLCD.print(text, CENTER, 100);
 
         // Option 1 was opened the first time
-        if (keypressed == ' ') 
+        if (keypressed == ' ')
         {
             Dcycle = "";
             clearText(CENTER, 32, 48, RCB_BLACK);
         }
-        //ignores return if less than 2 digits. Repastes what was already typed
-        else if (keypressed == 'R' && Dcycle.length() != 2){ 
+        // ignores return if less than 2 digits. Repastes what was already typed
+        else if (keypressed == 'R' && Dcycle.length() != 2)
+        {
             clearText(CENTER, 32, 48, RCB_BLACK);
-            if (Dcycle.length() > 0){
+            if (Dcycle.length() > 0)
+            {
                 oLCD.setBackColor(RCB_BLACK);
                 oLCD.printNumI(Dcycle.toInt(), CENTER, 32, 3, ' ');
             }
         }
-        // If key besides RETURN is pressed 
-        else 
+        // If key besides RETURN is pressed
+        else
         {
-            //deletes the last digit
-            if (keypressed == 'B') 
+            // deletes the last digit
+            if (keypressed == 'B')
             {
                 if (Dcycle.length() > 0)
                 {
                     Dcycle.remove(Dcycle.length() - 1);
                 }
             }
-            //conditional to check that the number is valid
-            else if (Dcycle.length() == 0) 
+            // conditional to check that the number is valid
+            else if (Dcycle.length() == 0)
             {
                 if (keypressed == '0' || keypressed == '1' || keypressed == '2' || keypressed == '3' || keypressed == '8' || keypressed == '9')
                 {
                     Dcycle = "";
                 }
-                else if (keypressed == '4' || keypressed == '5' ||  keypressed == '6' || keypressed == '7')
+                else if (keypressed == '4' || keypressed == '5' || keypressed == '6' || keypressed == '7')
                 {
                     Dcycle = Dcycle + keypressed;
                 }
@@ -178,101 +193,93 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
             {
                 if (keypressed != 'B')
                 {
-                    Dcycle = Dcycle + keypressed; 
-                } 
+                    Dcycle = Dcycle + keypressed;
+                }
             }
-            else if (Dcycle.length() == 2) // #s above 2-digits not allowed 
+            else if (Dcycle.length() == 2) // #s above 2-digits not allowed
             {
                 Dcycle = Dcycle;
             }
 
-            //shows a blankbox after things are deleated 
+            // shows a blankbox after things are deleated
             clearText(CENTER, 32, 20, RCB_BLACK);
-            if (Dcycle.length() > 0){
+            if (Dcycle.length() > 0)
+            {
 
-            oLCD.setBackColor(RCB_BLACK);
-            oLCD.printNumI(Dcycle.toInt(), CENTER, 32, 3, ' ');
+                oLCD.setBackColor(RCB_BLACK);
+                oLCD.printNumI(Dcycle.toInt(), CENTER, 32, 3, ' ');
             }
         }
     }
     // second screen of option 1
-    else if (optionstate == 'B') 
+    else if (optionstate == 'B')
     {
-        //circumference (cm)
+        // circumference (cm)
         double circumference = pivalue * WDIA;
-        //equation to store the number of counts needed to reach the target
-        int counttotarget = (int)(TG / circumference*CPR);
-        //resets Encoder Counts
+        // equation to store the number of counts needed to reach the target
+        const unsigned long counttotarget = (((double)TG * (double)CPR) / (double)circumference);
+        
+        if (DriveMode == false)
+        {
+        // resets Encoder Counts
         leftEncoderCount = 0;
         rightEncoderCount = 0;
-        //moves both motors forward at the set duty cycle
-        digitalWrite(lphasedir, HIGH);
-        digitalWrite(rphasedir, HIGH);
-        //left motor stays at the entered duty for the entire run
-        ledcWrite(lpwmChannel, (float)Dcycle.toInt() * maxDutyCycle / 100.0);
-        //right motor starts at the entered duty then will be corrected
-        rdutyStraight = Dcycle.toInt();
-        ledcWrite(rpwmChannel, (float)rdutyStraight * maxDutyCycle / 100.0);
-        
-        //uses sprintf to copy the words into text in the form of a char array. Then prints the screen text
-        sprintf(text, "RIGHT DUTY CYCLE");
-        oLCD.print(text, CENTER, 10);
-        sprintf(text, "LEFT COUNT");
-        oLCD.print(text, CENTER, 38);
-        sprintf(text, "RIGHT COUNT");
-        oLCD.print(text, CENTER, 66);
-        sprintf(text, "ERROR");
-        oLCD.print(text, CENTER, 94);
-
-        //keep going till the left wheel reaches the counttotarget
-            while (leftEncoderCount < counttotarget){
-
-                //passes time before updating the display
-                for (int i = 0; i < PASSES && leftEncoderCount < counttotarget; i++){
-
-                //error = left - right, need it to speed up if error is + and slow down if error is -
-                rdutyStraight = Dcycle.toInt() + ((int)leftEncoderCount - (int)rightEncoderCount);
-
+            // moves both motors forward at the set duty cycle
+            digitalWrite(lphasedir, HIGH);
+            digitalWrite(rphasedir, HIGH);
             
-                    //conditionals to keep right motor 20-80%
-                    if (rdutyStraight > 80){
-                        rdutyStraight = 80;
-                    }
-                    if (rdutyStraight < 20){
-                        rdutyStraight = 20;
-                    }
-                    //sets motors speed based off of duty cycle
-                    ledcWrite(rpwmChannel, (float)rdutyStraight * maxDutyCycle / 100);
+            // left motor stays at the entered duty for the entire run
+            ledcWrite(lpwmChannel, (float)Dcycle.toInt() * maxDutyCycle / 100.0);
+            // right motor starts at the entered duty then will be corrected
+            ledcWrite(rpwmChannel, (float)Dcycle.toInt() * maxDutyCycle / 100.0);
 
-                }   
+            ledcWrite(lpwmChannel, 0);
+            ledcWrite(rpwmChannel, 0);
 
-                //stops motors when target is reached
-                if (leftEncoderCount >= counttotarget){
-                    ledcWrite (lpwmChannel, 0);
-                    ledcWrite (rpwmChannel, 0);
-                }
-
-                //update the screen every 1 second and finally when it stops
-                
-                clearText(CENTER, 24, xScreen - 6, RCB_PURPLE);
-                oLCD.printNumI((int)rdutyStraight, CENTER, 24, 2, ' ');
-
-               
-                clearText(CENTER, 52, xScreen - 6, RCB_PURPLE);
-                oLCD.printNumI((int)leftEncoderCount, CENTER, 52, 5, '0');
-
-                
-                clearText(CENTER, 80, xScreen - 6, RCB_PURPLE);
-                oLCD.printNumI((int)rightEncoderCount, CENTER, 80, 5, '0');
-
-              
-                clearText(CENTER, 108, xScreen - 6, RCB_PURPLE);
-                oLCD.printNumI((int)leftEncoderCount - (int)rightEncoderCount, CENTER, 108, 3, '0');
-                    
-            }
-            //ignores buttons pressed when the robot was in motion
-            oIR.GetKeyPressed();
+            // uses sprintf to copy the words into text in the form of a char array. Then prints the screen text
+            sprintf(text, "RIGHT DUTY CYCLE");
+            oLCD.print(text, CENTER, 10);
+            sprintf(text, "LEFT COUNT");
+            oLCD.print(text, CENTER, 38);
+            sprintf(text, "RIGHT COUNT");
+            oLCD.print(text, CENTER, 66);
+            sprintf(text, "ERROR");
+            oLCD.print(text, CENTER, 94);
+            DriveMode = true;
         }
+        
+        // keep going till the left wheel reaches the counttotarget
+        while (leftEncoderCount < counttotarget)
+        {
+            DriveError = (long)leftEncoderCount - (long)rightEncoderCount; 
+            
+            //Adjusting right duty cycle for error 
+            rdutyStraight = (double)Dcycle.toInt() + ((double)DriveError/CPR);
+
+            //Failsafe duty cycle fix 
+            if(rdutyStraight > 80.0)
+            {
+                rdutyStraight = 80.0; 
+            } 
+            else if (rdutyStraight < 20.0)
+            {
+                rdutyStraight = 20.0; 
+            }
+
+            ledcWrite(rpwmChannel, (float)rdutyStraight * maxDutyCycle / 100.0);
+            UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError) 
+            delay(10);        
+        }
+        DriveMode = false; 
+        // stops motors when target is reached
+        ledcWrite(lpwmChannel, 0);
+        ledcWrite(rpwmChannel, 0);
+        
+        UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError);
+        oLCD.OPTION_STATE = 'A';
+        // ignores buttons pressed when the robot was in motion
+        // oIR.GetKeyPressed();
+    }
 }
 //
 //  Option2 code
@@ -587,6 +594,17 @@ void LeftEncoderISR(){
 }
 void RightEncoderISR(){
     rightEncoderCount++;
+}
+void UpdateDisplay(int Rduty, int LenC, int RenC, int Error)
+{
+    clearText(CENTER, 24, xScreen - 6, RCB_PURPLE);
+    oLCD.printNumI(Rduty, CENTER, 24, 2, ' ');
+    clearText(CENTER, 52, xScreen - 6, RCB_PURPLE);
+    oLCD.printNumI(LenC, CENTER, 52, 5, '0');
+    clearText(CENTER, 80, xScreen - 6, RCB_PURPLE);
+    oLCD.printNumI(RenC, CENTER, 80, 5, '0');
+    clearText(CENTER, 108, xScreen - 6, RCB_PURPLE);
+    oLCD.printNumI(Error, CENTER, 108, 3, '0');
 }
 // *************************************************************************************
 // END: OPTION1 SUPPORT
