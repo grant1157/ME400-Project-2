@@ -45,10 +45,10 @@ long DriveError = 0;
 
 const double pivalue = 3.141593;
 const double WDIA = 6.5; // wheel diameter(cm)
-const double CPR = 20.0; // counts on the encoder per full wheel rotation
+const double CPR = 12.0; // counts on the encoder per full wheel rotation
 const double TG = 100.0; // distance used in the calibration run (cm)
 double rdutyStraight = 0.0;    // right dutycycle
-
+const double correctingfactor = 0;
 const int PASSES = 0; //NEED TO TIME HOW OFTEN THE SCREEN UPDATES SOMEHOW (it is supposed to be the number of times the correction loop will run between the screen updating.)
  
 //functions
@@ -217,7 +217,7 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
         // circumference (cm)
         double circumference = pivalue * WDIA;
         // equation to store the number of counts needed to reach the target
-        const unsigned long counttotarget = (((double)TG * (double)CPR) / (double)circumference);
+        double counttotarget = (((double)TG * (double)CPR) / (double)circumference);
         
         if (DriveMode == false)
         {
@@ -233,9 +233,6 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
             // right motor starts at the entered duty then will be corrected
             ledcWrite(rpwmChannel, (float)Dcycle.toInt() * maxDutyCycle / 100.0);
 
-            ledcWrite(lpwmChannel, 0);
-            ledcWrite(rpwmChannel, 0);
-
             // uses sprintf to copy the words into text in the form of a char array. Then prints the screen text
             sprintf(text, "RIGHT DUTY CYCLE");
             oLCD.print(text, CENTER, 10);
@@ -249,12 +246,12 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
         }
         
         // keep going till the left wheel reaches the counttotarget
-        while (leftEncoderCount < counttotarget)
+        while (leftEncoderCount < counttotarget && rightEncoderCount < counttotarget)
         {
             DriveError = (long)leftEncoderCount - (long)rightEncoderCount; 
             
             //Adjusting right duty cycle for error 
-            rdutyStraight = (double)Dcycle.toInt() + ((double)DriveError/CPR);
+            rdutyStraight = (double)Dcycle.toInt() + ((double)DriveError * 1.5);
 
             //Failsafe duty cycle fix 
             if(rdutyStraight > 80.0)
@@ -267,8 +264,8 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
             }
 
             ledcWrite(rpwmChannel, (float)rdutyStraight * maxDutyCycle / 100.0);
-            UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError) 
-            delay(10);        
+            UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError);
+            delay(1);        
         }
         DriveMode = false; 
         // stops motors when target is reached
@@ -375,6 +372,10 @@ void setup()
 //
 void loop()
 {
+    Serial.print(leftEncoderCount);
+    Serial.print(" ");
+    Serial.println(rightEncoderCount);
+
     unsigned long last_key_processed;
     // Determine which key was pressed.
     last_key_processed = oIR.GetKeyPressed();
