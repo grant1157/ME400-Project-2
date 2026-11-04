@@ -45,7 +45,7 @@ long DriveError = 0;
 
 const double pivalue = 3.141593;
 const double WDIA = 6.5; // wheel diameter(cm)
-const double CPR = 12.0; // counts on the encoder per full wheel rotation
+const double CPR = 20.0; // counts on the encoder per full wheel rotation
 const double TG = 100.0; // distance used in the calibration run (cm)
 double rdutyStraight = 0.0;    // right dutycycle
 const double correctingfactor = 0;
@@ -100,19 +100,16 @@ void clearText(int32_t x, int32_t y, int32_t width, uint16_t color)
 //
 void Option1(char optionstate, char keypressed, bool initdisplay)
 {
-    // holds the words before they are printed
+   // holds the words before they are printed
     char text[20];
 
     // static is important because it will stay what it previously was as we progress
     static String Dcycle = "";
     static bool DriveMode = false;
 
-    if (DriveMode == false)
-    {
     // clears the screen and sets the text/background colors
     oLCD.LCDInitialize(LANDSCAPE, initdisplay);
     oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
-    }
 
     // if return is pressed with less than 2 digits it will stay on the screen
     if (optionstate == 'B' && Dcycle.length() != 2)
@@ -120,7 +117,6 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
         // A for entry screen code
         optionstate = 'A';
         oLCD.OPTION_STATE = 'A';
-        DriveMode = false;
     }
     
     if(DriveMode == true)
@@ -217,10 +213,8 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
         // circumference (cm)
         double circumference = pivalue * WDIA;
         // equation to store the number of counts needed to reach the target
-        double counttotarget = (((double)TG * (double)CPR) / (double)circumference);
+        const unsigned long counttotarget = (((double)TG * (double)CPR) / (double)circumference);
         
-        if (DriveMode == false)
-        {
         // resets Encoder Counts
         leftEncoderCount = 0;
         rightEncoderCount = 0;
@@ -231,7 +225,8 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
             // left motor stays at the entered duty for the entire run
             ledcWrite(lpwmChannel, (float)Dcycle.toInt() * maxDutyCycle / 100.0);
             // right motor starts at the entered duty then will be corrected
-            ledcWrite(rpwmChannel, (float)Dcycle.toInt() * maxDutyCycle / 100.0);
+            rdutyStraight = (float)Dcycle.toInt(); 
+            ledcWrite(rpwmChannel, rdutyStraight * maxDutyCycle / 100.0);
 
             // uses sprintf to copy the words into text in the form of a char array. Then prints the screen text
             sprintf(text, "RIGHT DUTY CYCLE");
@@ -242,16 +237,14 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
             oLCD.print(text, CENTER, 66);
             sprintf(text, "ERROR");
             oLCD.print(text, CENTER, 94);
-            DriveMode = true;
-        }
         
         // keep going till the left wheel reaches the counttotarget
-        while (leftEncoderCount < counttotarget && rightEncoderCount < counttotarget)
+        while (leftEncoderCount < counttotarget)
         {
-            DriveError = (long)leftEncoderCount - (long)rightEncoderCount; 
+            DriveError = (long)leftEncoderCount - (long)rightEncoderCount/8.0; 
             
             //Adjusting right duty cycle for error 
-            rdutyStraight = (double)Dcycle.toInt() + ((double)DriveError * 1.5);
+            rdutyStraight = rdutyStraight + ((double)DriveError*0.05);
 
             //Failsafe duty cycle fix 
             if(rdutyStraight > 80.0)
@@ -264,8 +257,8 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
             }
 
             ledcWrite(rpwmChannel, (float)rdutyStraight * maxDutyCycle / 100.0);
-            UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError);
-            delay(1);        
+            UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError); 
+            delay(5);        
         }
         DriveMode = false; 
         // stops motors when target is reached
