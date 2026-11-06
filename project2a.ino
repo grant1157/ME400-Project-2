@@ -1,44 +1,43 @@
 #include "lcdhelperv2.h"
 #include "irhelper.h"
 #include <math.h>
-// pins
 
-// simple change to test Git works
+//simple change to test Git works
 
-// setup pwm
+//setup pwm
 const int pwmFreq = 496;
 const int pwmResolution = 8;
 const int maxDutyCycle = (int)pow(2, pwmResolution) - 1;
 
-// makes variables for the left motor
+//makes variables for the left motor
 const int lencoder = 10;
 const int lenenablepwm = 46;
 const int lphasedir = 12;
 volatile unsigned long leftEncoderCount = 0;
 const int lpwmChannel = 1;
 
-// make variables for the right motor
+//make variables for the right motor
 const int rencoder = 8;
 const int renablepwm = 14;
 const int rphasedir = 13;
 volatile unsigned long rightEncoderCount = 0;
 const int rpwmChannel = 2;
 
-// step 12 for switches
+//step 12 for switches
 const int sw1 = 18;
 const int sw2 = 17;
 const int sw3 = 16;
 const int sw4 = 15;
 
-// step 13
+//step 13
 const int tiltpin = 35;
 const int servopin = 36;
 
-// step14
+//step14
 const int ECHOpin = 37;
 const int TRIGpin = 38;
 
-// stuff for option 1
+//stuff for option 1
 void UpdateDisplay(int Rduty, int LenC, int RenC, int Error);
 long DriveError = 0;
 
@@ -49,14 +48,17 @@ float rOuter = 0;
 float rInner = 0; 
 
 const double pivalue = 3.141593;
-const double WDIA = 6.5;    // wheel diameter(cm)
-const double CPR = 20.0;    // counts on the encoder per full wheel rotation
-const double TG = 100.0;    // distance used in the calibration run (cm)
-double rdutyStraight = 0.0; // right dutycycle
+const double WDIA = 6.5; // wheel diameter(cm)
+const double CPR = 20.0; // counts on the encoder per full wheel rotation
+const double TG = 100.0; // distance used in the calibration run (cm)
+double rdutyStraight = 0.0;    // right dutycycle
 const double correctingfactor = 0;
-const int PASSES = 0; // NEED TO TIME HOW OFTEN THE SCREEN UPDATES SOMEHOW (it is supposed to be the number of times the correction loop will run between the screen updating.)
+const int PASSES = 0; //NEED TO TIME HOW OFTEN THE SCREEN UPDATES SOMEHOW (it is supposed to be the number of times the correction loop will run between the screen updating.)
 
-// functions
+unsigned long lastleftpulse = 0;
+unsigned long lastrightpulse = 0;
+ 
+//functions
 void degreeIncrements();
 void servowrite(int pin, int angle, int numpulses);
 int calculateDistance(int tPin, int ePin);
@@ -67,7 +69,7 @@ int xyz = 0;
 //  Create an instance of the lcdhelper class named oLCD
 
 //
-lcdhelper oLCD(ILI9163_4L, 3, 2, 9, 10, 7);
+lcdhelper oLCD(ILI9163_4L, 3, 2, 9, 10, 7); 
 
 //  Declare a sprite so we can display a rotated label on the TFT.
 //
@@ -98,14 +100,14 @@ void clearText(int32_t x, int32_t y, int32_t width, uint16_t color)
     else
         xStart = x;
 
-    oLCD.fillRect(xStart, y - 6, width, 15, color);
+    oLCD.fillRect(xStart, y-6, width, 15, color);
 }
 //
 //  Option1 code
 //
 void Option1(char optionstate, char keypressed, bool initdisplay)
 {
-    // holds the words before they are printed
+   // holds the words before they are printed
     char text[20];
 
     // static is important because it will stay what it previously was as we progress
@@ -123,10 +125,10 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
         optionstate = 'A';
         oLCD.OPTION_STATE = 'A';
     }
-
-    if (DriveMode == true)
+    
+    if(DriveMode == true)
     {
-        optionstate = 'B';
+        optionstate = 'B'; 
     }
 
     if (optionstate == 'A')
@@ -219,57 +221,56 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
         double circumference = pivalue * WDIA;
         // equation to store the number of counts needed to reach the target
         const unsigned long counttotarget = (((double)TG * (double)CPR) / (double)circumference);
-
+        
         // resets Encoder Counts
         leftEncoderCount = 0;
         rightEncoderCount = 0;
-        // moves both motors forward at the set duty cycle
-        digitalWrite(lphasedir, HIGH);
-        digitalWrite(rphasedir, HIGH);
+            // moves both motors forward at the set duty cycle
+            digitalWrite(lphasedir, HIGH);
+            digitalWrite(rphasedir, HIGH);
+            
+            // left motor stays at the entered duty for the entire run
+            ledcWrite(lpwmChannel, (float)Dcycle.toInt() * maxDutyCycle / 100.0);
+            // right motor starts at the entered duty then will be corrected
+            rdutyStraight = (float)Dcycle.toInt(); 
+            ledcWrite(rpwmChannel, rdutyStraight * maxDutyCycle / 100.0);
 
-        // left motor stays at the entered duty for the entire run
-        ledcWrite(lpwmChannel, (float)Dcycle.toInt() * maxDutyCycle / 100.0);
-        // right motor starts at the entered duty then will be corrected
-        rdutyStraight = (float)Dcycle.toInt();
-        ledcWrite(rpwmChannel, rdutyStraight * maxDutyCycle / 100.0);
-
-        // uses sprintf to copy the words into text in the form of a char array. Then prints the screen text
-        sprintf(text, "RIGHT DUTY CYCLE");
-        oLCD.print(text, CENTER, 10);
-        sprintf(text, "LEFT COUNT");
-        oLCD.print(text, CENTER, 38);
-        sprintf(text, "RIGHT COUNT");
-        oLCD.print(text, CENTER, 66);
-        sprintf(text, "ERROR");
-        oLCD.print(text, CENTER, 94);
-
+            // uses sprintf to copy the words into text in the form of a char array. Then prints the screen text
+            sprintf(text, "RIGHT DUTY CYCLE");
+            oLCD.print(text, CENTER, 10);
+            sprintf(text, "LEFT COUNT");
+            oLCD.print(text, CENTER, 38);
+            sprintf(text, "RIGHT COUNT");
+            oLCD.print(text, CENTER, 66);
+            sprintf(text, "ERROR");
+            oLCD.print(text, CENTER, 94);
+        
         // keep going till the left wheel reaches the counttotarget
-        while (leftEncoderCount < counttotarget)
-        {
-            DriveError = (long)leftEncoderCount - (long)rightEncoderCount / 8.0;
+        while (leftEncoderCount < counttotarget){
+            DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.75; 
+            
+            //Adjusting right duty cycle for error 
+            rdutyStraight = Dcycle.toInt() + (0.1 * (double)DriveError );
 
-            // Adjusting right duty cycle for error
-            rdutyStraight = rdutyStraight + ((double)DriveError * 0.05);
-
-            // Failsafe duty cycle fix
-            if (rdutyStraight > 80.0)
+            //Failsafe duty cycle fix 
+            if(rdutyStraight > 80.0)
             {
-                rdutyStraight = 80.0;
-            }
+                rdutyStraight = 80.0; 
+            } 
             else if (rdutyStraight < 20.0)
             {
-                rdutyStraight = 20.0;
+                rdutyStraight = 20.0; 
             }
 
             ledcWrite(rpwmChannel, (float)rdutyStraight * maxDutyCycle / 100.0);
-            UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError);
-            delay(5);
+            UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError); 
+            delay(20);        
         }
-        DriveMode = false;
+        DriveMode = false; 
         // stops motors when target is reached
         ledcWrite(lpwmChannel, 0);
         ledcWrite(rpwmChannel, 0);
-
+        
         UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError);
         oLCD.OPTION_STATE = 'A';
         // ignores buttons pressed when the robot was in motion
@@ -286,9 +287,8 @@ void Option2(char optionstate, char keypressed, bool initdisplay)
 //
 //  Option3 code
 //
-void Option3(char optionstate, char keypressed, bool initdisplay)
-{
-if(optionstate == 'A'){ 
+void Option3(char optionstate, char keypressed, bool initdisplay){
+  if(optionstate == 'A'){ 
     oLCD.LCDInitialize(LANDSCAPE, initdisplay); 
     rOuter = (xScreen - mScreen)/2.0; 
     xC = xScreen / 2; 
@@ -308,8 +308,8 @@ if(optionstate == 'A'){
 //
 //  Option4 code
 //
-void Option4(char optionstate, char keypressed, bool initdisplay)
-{
+void Option4(char optionstate, char keypressed, bool initdisplay){
+    
 }
 // *************************************************************************************
 // END: USER FUNCTIONS
@@ -336,14 +336,14 @@ void setup()
     ledcAttachPin(renablepwm, rpwmChannel);
     ledcWrite(rpwmChannel, 0);
     pinMode(lphasedir, OUTPUT);
-    pinMode(rphasedir, OUTPUT);
+    pinMode (rphasedir, OUTPUT);
 
     pinMode(tiltpin, OUTPUT);
     pinMode(servopin, OUTPUT);
     servowrite(tiltpin, 15, 10);
     servowrite(servopin, 90, 10);
-
-    // doing pinmode for steps 11-16
+    
+    //doing pinmode for steps 11-16
     pinMode(lencoder, INPUT_PULLDOWN);
     pinMode(rencoder, INPUT_PULLDOWN);
     pinMode(sw1, INPUT_PULLUP);
@@ -354,8 +354,8 @@ void setup()
     pinMode(servopin, OUTPUT);
     pinMode(ECHOpin, INPUT);
     pinMode(TRIGpin, OUTPUT);
-
-    // used to count every pulse from each wheels encoder. Used to check distance traveled
+    
+    //used to count every pulse from each wheels encoder. Used to check distance traveled
     attachInterrupt(digitalPinToInterrupt(lencoder), LeftEncoderISR, RISING);
     attachInterrupt(digitalPinToInterrupt(rencoder), RightEncoderISR, RISING);
 
@@ -389,60 +389,55 @@ void loop()
         {
             if (last_key_processed == KEY_1)
             {
-                ShowDisplay(SC_SUB1, 'A', ' ', false);
+                ShowDisplay(SC_SUB1, 'A', ' ',false); 
             }
             else if (last_key_processed == KEY_2)
             {
-                ShowDisplay(SC_SUB2, 'A', ' ', false);
+                ShowDisplay(SC_SUB2, 'A', ' ',false); 
             }
             else if (last_key_processed == KEY_3)
             {
-                ShowDisplay(SC_SUB3, 'A', ' ', false);
+                ShowDisplay(SC_SUB3, 'A', ' ',false); 
             }
             else if (last_key_processed == KEY_4)
             {
-                ShowDisplay(SC_SUB4, 'A', ' ', false);
+                ShowDisplay(SC_SUB4, 'A', ' ',false); 
             }
         }
         if (oLCD.SCREEN_STATE == SC_SUB1)
         {
             // If the user presses one of the numeric keys, then display the key in the correct place on the screen.
-            if ((last_key_processed == KEY_0 || last_key_processed == KEY_1 || last_key_processed == KEY_2 || last_key_processed == KEY_3 || last_key_processed == KEY_4 ||
-                 last_key_processed == KEY_5 || last_key_processed == KEY_6 || last_key_processed == KEY_7 || last_key_processed == KEY_8 || last_key_processed == KEY_9 ||
-                 last_key_processed == KEY_BACK) &&
-                oLCD.OPTION_STATE == 'A')
+            if ((last_key_processed == KEY_0  || last_key_processed == KEY_1  || last_key_processed == KEY_2  || last_key_processed == KEY_3  || last_key_processed == KEY_4  ||
+                last_key_processed == KEY_5  || last_key_processed == KEY_6  || last_key_processed == KEY_7  || last_key_processed == KEY_8  || last_key_processed == KEY_9 ||
+                last_key_processed == KEY_BACK) && oLCD.OPTION_STATE == 'A')  
             {
-                ShowDisplay((screen)oLCD.SCREEN_STATE, 'A', oIR.TranslateKey(last_key_processed), false);
+                ShowDisplay((screen)oLCD.SCREEN_STATE,'A',oIR.TranslateKey(last_key_processed),false);  
             }
-            else if (last_key_processed == KEY_RETURN)
+            else if (last_key_processed== KEY_RETURN) 
             {
-                ShowDisplay((screen)oLCD.SCREEN_STATE, 'B', oIR.TranslateKey(last_key_processed), false);
+                ShowDisplay((screen)oLCD.SCREEN_STATE,'B',oIR.TranslateKey(last_key_processed), false);  
             }
         }
         else if (oLCD.SCREEN_STATE == SC_SUB2)
         {
-            Serial.print("Sub2 trace = ");
-            Serial.println(last_key_processed);
+            Serial.print("Sub2 trace = ");Serial.println(last_key_processed);
             if (last_key_processed == KEY_RETURN)
             {
                 ShowDisplay(SC_MAIN, ' ', ' ');
             }
-            else
-            {
-                ShowDisplay(SC_SUB2, ' ', oIR.TranslateKey(last_key_processed), false);
+            else{
+                ShowDisplay(SC_SUB2, ' ', oIR.TranslateKey(last_key_processed),false); 
             }
         }
         else if (oLCD.SCREEN_STATE == SC_SUB3)
         {
-            Serial.print("Sub3 trace = ");
-            Serial.println(last_key_processed);
+            Serial.print("Sub3 trace = ");Serial.println(last_key_processed);
             if (last_key_processed == KEY_RETURN)
             {
                 ShowDisplay(SC_MAIN, ' ', ' ');
             }
-            else
-            {
-                ShowDisplay(SC_SUB3, ' ', oIR.TranslateKey(last_key_processed), false);
+            else{
+                ShowDisplay(SC_SUB3, ' ', oIR.TranslateKey(last_key_processed),false); 
             }
         }
         else if (oLCD.SCREEN_STATE == SC_SUB4)
@@ -451,9 +446,8 @@ void loop()
             {
                 ShowDisplay(SC_MAIN, ' ', ' ');
             }
-            else
-            {
-                ShowDisplay(SC_SUB4, ' ', oIR.TranslateKey(last_key_processed), false);
+            else{
+                ShowDisplay(SC_SUB4, ' ', oIR.TranslateKey(last_key_processed),false); 
             }
         }
     }
@@ -468,31 +462,31 @@ void ShowDisplay(screen val, char optionstate, char keypressed, bool initdisplay
     oLCD.SCREEN_STATE = val;
     oLCD.OPTION_STATE = optionstate;
     int selectedpid = 0;
-
+   
     if (val == SC_MAIN)
     {
-        //
+         //
         //  Initialize the display
         //
         oLCD.LCDInitialize(LANDSCAPE, initdisplay);
         oLCD.print("SELECT OPTION", 10, 10);
         oLCD.print("1. CALIBRATE DRIVE", 10, 24);
-        oLCD.setTextColor(RCB_RED);
+        oLCD.setTextColor(RCB_RED); 
         oLCD.print("2. SEEK TARGET", 10, 38);
-        oLCD.setTextColor(RCB_WHITE);
+        oLCD.setTextColor(RCB_WHITE); 
         oLCD.print("3. LOCATE TARGET", 10, 52);
         oLCD.setTextColor(RCB_RED);
         oLCD.print("4. NAVIGATE", 10, 66);
     }
     if (val == SC_SUB1)
     {
-        Serial.println("option1");
-        Option1(optionstate, keypressed, initdisplay);
+         Serial.println("option1");
+         Option1(optionstate, keypressed, initdisplay);
     }
     else if (val == SC_SUB2)
     {
-        // Serial.println("option2");
-        // Option2(optionstate, keypressed, initdisplay);
+        //Serial.println("option2");
+        //Option2(optionstate, keypressed, initdisplay);
     }
     else if (val == SC_SUB3)
     {
@@ -501,8 +495,8 @@ void ShowDisplay(screen val, char optionstate, char keypressed, bool initdisplay
     }
     else if (val == SC_SUB4)
     {
-        // Serial.println("option4");
-        // Option4(optionstate, keypressed, initdisplay);
+        //Serial.println("option4");
+        //Option4(optionstate, keypressed, initdisplay);
     }
 }
 // *************************************************************************************
@@ -514,25 +508,24 @@ void ShowDisplay(screen val, char optionstate, char keypressed, bool initdisplay
 void servowrite(int pin, int angle, int numpulses)
 {
     //  Move servo attached to pin to the specified angle.
-    //  The numpulses shoul be set to approximately 3 for
+    //  The numpulses shoul be set to approximately 3 for 
     //  an angular movement of 2 or less degrees.  For a large
     //  angular change numpulses should be set to 10.
     //  Set the pulse height in microseconds associated
     //  with the servo angles of 0 and 180 degrees
     //
-    int microzero = 500;
-    int micro180 = 2400;
+    int microzero=500;
+    int micro180=2400;
     int lenMicroSecondsOfPeriod = 20 * 1000;
     // pin for servo, angle to move, microseconds for zero degrees, microseconds for 180 degrees
     int lenMicroSecondsOfPulse = map(angle, 0, 180, microzero, micro180); // map angle to microseconds
-    // Loop long enough for servo to see enough of waveform to fully
+    // Loop long enough for servo to see enough of waveform to fully 
     // move to the new position.
-    for (int i = 0; i < numpulses; i++)
-    {
-        // Servos work by sending a 20 ms pulse.
+    for (int i = 0; i<numpulses; i++){
+        // Servos work by sending a 20 ms pulse.  
         // 1.0 ms at the start of the pulse will turn the servo to the 0 degree position
-        // 1.5 ms at the start of the pulse will turn the servo to the 90 degree position
-        // 2.0 ms at the start of the pulse will turn the servo to the 180 degree position
+        // 1.5 ms at the start of the pulse will turn the servo to the 90 degree position 
+        // 2.0 ms at the start of the pulse will turn the servo to the 180 degree position 
         // Turn voltage high to start the period and pulse
         digitalWrite(pin, HIGH);
 
@@ -544,7 +537,7 @@ void servowrite(int pin, int angle, int numpulses)
 
         // Delay this loop for the remainder of the period so we don't
         // send the next signal too soon or too late
-        delayMicroseconds(lenMicroSecondsOfPeriod - lenMicroSecondsOfPulse);
+        delayMicroseconds(lenMicroSecondsOfPeriod - lenMicroSecondsOfPulse); 
     }
 }
 //
@@ -568,20 +561,19 @@ int calculateDistance(int tPin, int ePin)
 //
 //  Code to display y axis label (rotated 90 degrees)
 //
-void DisplayRotatedText(int x, int y)
-{
-    oLCD.setPivot(x / 2, y / 2); // Set pivot to middle of TFT screen
+void DisplayRotatedText(int x, int y){
+    oLCD.setPivot(x/2, y/2);   // Set pivot to middle of TFT screen
     // Create the Sprite
-    spr.setColorDepth(16);     // Create an 8bpp Sprite of 60x30 pixels
-    spr.createSprite(124, 30); // 8bpp requires 64 * 30 = 1920 bytes
+    spr.setColorDepth(16);      // Create an 8bpp Sprite of 60x30 pixels
+    spr.createSprite(124, 30);  // 8bpp requires 64 * 30 = 1920 bytes
     //
     // Set pivot relative to top left corner of Sprite (increasing y will push the text
     // closer to the left hand side of the screen.  Increasing x will move the label up and down)
-    spr.setPivot(57, 85);
+    spr.setPivot(57, 85);      
     spr.fillSprite(RCB_PURPLE); // Fill the Sprite with black
 
-    spr.setTextColor(RCB_WHITE);              // Green text
-    spr.setTextDatum(MC_DATUM);               // Middle centre datum
+    spr.setTextColor(RCB_WHITE);        // Green text
+    spr.setTextDatum(MC_DATUM);         // Middle centre datum
     spr.drawString("speed (rpm)", 60, 15, 2); // Plot text, font 4, in Sprite at 12, 15
 
     // rotate text on screen by 270 degrees
@@ -595,15 +587,25 @@ void DisplayRotatedText(int x, int y)
 // *************************************************************************************
 // START: OPTION1 SUPPORT
 // *************************************************************************************
-// adds 1 to a count specific to the side per pulse
-void LeftEncoderISR()
-{
-    leftEncoderCount++;
+//adds 1 to a count specific to the side per pulse
+void LeftEncoderISR(){
+    unsigned long nowL = micros();
+    if(nowL - lastleftpulse >= 3000){
+        leftEncoderCount++;
+        lastleftpulse = nowL;
+
+    }
+  
 }
-void RightEncoderISR()
-{
-    rightEncoderCount++;
+void RightEncoderISR(){
+    unsigned long nowR = micros();
+    if(nowR - lastrightpulse >= 3000){
+        rightEncoderCount++;
+        lastrightpulse = nowR;
+    }
+
 }
+
 void UpdateDisplay(int Rduty, int LenC, int RenC, int Error)
 {
     clearText(CENTER, 24, xScreen - 6, RCB_PURPLE);
@@ -632,6 +634,28 @@ void UpdateDisplay(int Rduty, int LenC, int RenC, int Error)
 //
 //  Option 3: Function to draw a box.
 //
+void degreeIncrements(){
+    for(int angle = 15; angle <= 165; angle = angle + 2){
+        servowrite(tiltpin, 0, 10);
+        servowrite(servopin, angle, 3);
+        int distance = calculateDistance(TRIGpin, ECHOpin);
+    }
+    delay(100);
+    for(int angle = 165; angle >= 15; angle = angle - 2){
+        servowrite(tiltpin, 0, 10);
+        servowrite(servopin, angle, 3);
+        int distance = calculateDistance(TRIGpin, ECHOpin);
+    }
+    delay(100);
+    servowrite(servopin, 90, 10);
+}
+void DrawBox(int x1, int y1, int x2, int y2, uint32_t color)
+{
+    oLCD.fillRoundRect(x1, y1, x2, y2, 3, color);
+}
+// *************************************************************************************
+// END: OPTION3 SUPPORT
+// *************************************************************************************
 void drawRay(int angle, int distance)
 {
     float rad = angle * pivalue / 180.0;
@@ -693,9 +717,6 @@ void DrawBox(int x1, int y1, int x2, int y2, uint32_t color)
 {
     oLCD.fillRoundRect(x1, y1, x2, y2, 3, color);
 }
-// *************************************************************************************
-// END: OPTION3 SUPPORT
-// *************************************************************************************
 // *************************************************************************************
 // START: OPTION4 SUPPORT
 // *************************************************************************************
