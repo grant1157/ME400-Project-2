@@ -665,31 +665,6 @@ void UpdateDisplay(int Rduty, int LenC, int RenC, int Error)
 // *************************************************************************************
 // START: OPTION3 SUPPORT
 // *************************************************************************************
-//
-//  Option 3: Function to draw a box.
-//
-void degreeIncrements(){
-    for(int angle = 15; angle <= 165; angle = angle + 2){
-        servowrite(tiltpin, 0, 10);
-        servowrite(servopin, angle, 3);
-        int distance = calculateDistance(TRIGpin, ECHOpin);
-    }
-    delay(100);
-    for(int angle = 165; angle >= 15; angle = angle - 2){
-        servowrite(tiltpin, 0, 10);
-        servowrite(servopin, angle, 3);
-        int distance = calculateDistance(TRIGpin, ECHOpin);
-    }
-    delay(100);
-    servowrite(servopin, 90, 10);
-}
-void DrawBox(int x1, int y1, int x2, int y2, uint32_t color)
-{
-    oLCD.fillRoundRect(x1, y1, x2, y2, 3, color);
-}
-// *************************************************************************************
-// END: OPTION3 SUPPORT
-// *************************************************************************************
 void drawRay(int angle, int distance)
 {
     float rad = angle * pivalue / 180.0;
@@ -751,6 +726,10 @@ void DrawBox(int x1, int y1, int x2, int y2, uint32_t color)
 {
     oLCD.fillRoundRect(x1, y1, x2, y2, 3, color);
 }
+// *************************************************************************************
+// END: OPTION3 SUPPORT
+// *************************************************************************************
+
 // *************************************************************************************
 // START: OPTION4 SUPPORT
 // *************************************************************************************
