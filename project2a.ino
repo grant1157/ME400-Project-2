@@ -658,7 +658,79 @@ void UpdateDisplay(int Rduty, int LenC, int RenC, int Error)
 // *************************************************************************************
 // START: OPTION2 SUPPORT
 // *************************************************************************************
+void DiffTurn(float angle) // turn if angle of robot +/- 10 degrees of centerline 
+{ 
+    // resets Encoder Counts 
+    leftEncoderCount = 0; 
+    rightEncoderCount = 0; 
 
+    // Turn counts calculation 
+    int counttoturn = (abs(90 - angle))/9; 
+    
+    if (angle > 90) // Left turn 
+    { 
+        // Left motor backwards right motor forwards 
+        digitalWrite(lphasedir, LOW); 
+        digitalWrite(rphasedir, HIGH); 
+    } 
+    else if (angle < 90) // Right turn 
+    { 
+        // Left motor forwards right motor backwards 
+        digitalWrite(lphasedir, HIGH); 
+        digitalWrite(rphasedir, LOW); 
+    } 
+    
+    // Set 30% dutycycle, stop when count to turn is reached
+    ledcWrite(lpwmChannel, 30.0 * maxDutyCycle / 100.0); 
+    ledcWrite(rpwmChannel, 30.0 * maxDutyCycle / 100.0); 
+    if (leftEncoderCount == counttoturn) 
+    { 
+        ledcWrite(lpwmChannel, 0); 
+        ledcWrite(rpwmChannel, 0); 
+    } 
+} 
+
+void SeekDrive(float dist) 
+{
+    int counttotarget = 0; 
+
+    // Set both motors forward
+    digitalWrite(lphasedir, HIGH); 
+    digitalWrite(rphasedir, HIGH);
+
+    // Using incremental distance of 20cm
+    if (dist > 22.0)
+    {
+        // Default to 20cm
+        counttotarget = 20; 
+    } 
+    else if (dist <= 22.0)
+    {
+        // Once in range find true distance within 2cm of object
+        float Truedist = dist - 2;
+        double circumference = pivalue * WDIA;
+        counttotarget = (((double)Truedist * (double)CPR) / (double)circumference);
+    }
+
+    // Set duty cycle to 70%, move until count target is reached
+    ledcWrite(lpwmChannel, 70.0 * maxDutyCycle / 100.0); 
+    ledcWrite(rpwmChannel, 70.0 * maxDutyCycle / 100.0);
+    if (leftEncoderCount >= counttotarget)
+    {
+        ledcWrite(lpwmChannel, 0); 
+        ledcWrite(rpwmChannel, 0);
+    }
+} 
+
+void Sweep() 
+{ 
+    // Use ultrasonic to seek target determine angle and distance 
+} 
+
+void TrackDistance() 
+{ 
+        // Something to keep within 2cm of target 
+}
 // *************************************************************************************
 // END: OPTION2 SUPPORT
 // *************************************************************************************
