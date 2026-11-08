@@ -251,7 +251,7 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
 
             //stops if the power button is pressed stop the motors and show the current screen
             unsigned long newKey = oIR.GetKeyPressed();
-            if(newKey == P){
+            if(newKey == KEY_POWER){
                  ledcWrite(rpwmChannel, 0);
                  ledcWrite(lpwmChannel, 0);
 
