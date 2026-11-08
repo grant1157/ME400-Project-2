@@ -53,7 +53,7 @@ const double CPR = 20.0; // counts on the encoder per full wheel rotation
 const double TG = 100.0; // distance used in the calibration run (cm)
 double rdutyStraight = 0.0;    // right dutycycle
 const double correctingfactor = 0;
-const int PASSES = 0; //NEED TO TIME HOW OFTEN THE SCREEN UPDATES SOMEHOW (it is supposed to be the number of times the correction loop will run between the screen updating.)
+
 
 unsigned long lastleftpulse = 0;
 unsigned long lastrightpulse = 0;
@@ -247,6 +247,17 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
         
         // keep going till the left wheel reaches the counttotarget
         while (leftEncoderCount < counttotarget){
+
+
+            //stops if the power button is pressed stop the motors and show the current screen
+            unsigned long newKey = oIR.GetKeyPressed();
+            if(newKey == P){
+                 ledcWrite(rpwmChannel, 0);
+                 ledcWrite(lpwmChannel, 0);
+
+                 break;
+            }
+         
             DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.75; 
             
             //Adjusting right duty cycle for error 
