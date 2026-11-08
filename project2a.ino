@@ -665,7 +665,7 @@ void DiffTurn(float angle) // turn if angle of robot +/- 10 degrees of centerlin
     rightEncoderCount = 0; 
 
     // Turn counts calculation 
-    int counttoturn = (abs(90 - angle))/9; 
+    int counttoturn = (abs(90 - angle))/10; 
     
     if (angle > 90) // Left turn 
     { 
