@@ -293,7 +293,30 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
 //
 void Option2(char optionstate, char keypressed, bool initdisplay)
 {
-    // DO NOT SHARE CODE WITH STUDENTS.  THIS IS A COMPETITION SO LETS SEE WHAT THEY COME UP.
+ // empty array to hold text 
+    char text[20]; 
+    
+    oLCD.LCDInitialize(LANDSCAPE, initdisplay); 
+    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE); 
+    
+    if (optionstate == 'A') 
+    { 
+    sprintf(text, "PREPARING"); 
+    oLCD.print(text, CENTER, 24); 
+    sprintf(text, "TO"); 
+    oLCD.print(text, CENTER, 40); 
+    sprintf(text, "ACQUIRE"); 
+    oLCD.print(text, CENTER, 56); 
+    sprintf(text, "TARGET"); 
+    oLCD.print(text, CENTER, 72); 
+    }
+    else if (optionstate == 'B') 
+    { sprintf(text, "TARGET DIST"); 
+    oLCD.print(text, CENTER, 24); 
+    sprintf(text, "TARGET ANGLE");
+    oLCD.print(text, CENTER, 56);
+    }
+
 }
 //
 //  Option3 code
