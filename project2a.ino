@@ -40,13 +40,6 @@ const int TRIGpin = 38;
 //stuff for option 1
 void UpdateDisplay(int Rduty, int LenC, int RenC, int Error);
 long DriveError = 0;
-
-//option 3
-float xC = 0; 
-float yC = 0; 
-float rOuter = 0; 
-float rInner = 0; 
-
 const double pivalue = 3.141593;
 const double WDIA = 6.5; // wheel diameter(cm)
 const double CPR = 20.0; // counts on the encoder per full wheel rotation
@@ -58,6 +51,49 @@ const double correctingfactor = 0;
 unsigned long lastleftpulse = 0;
 unsigned long lastrightpulse = 0;
  
+
+//option 3
+//option 3 global variables
+float yC = 0;
+float xC = 0;
+float rInner = 0;
+float rOuter = 60;
+float radians = 0;
+float scaledDistance = 0;
+int startAngle = 0;
+int endAngle = 0;
+float totalDistance = 0;
+int measurementCount = 0;
+// final object loccation
+float theta_f = 0;
+float d_f = 0;
+float theta_r = 0;
+float d_r = 0;
+float theta_target = 0;   //final angle target
+float d_target = 0;       //final distance of target
+int previousAngle = 0;
+int previousDistance = 120; //initialize previousDistance to 120cm
+float closestDistance = 120;
+float closestAngle = 0;
+int closestCount = 0;
+int closestStartAngle = 0;
+int closestEndAngle = 0;
+// option 3 disable option #4
+bool targetFound = false;
+
+
+//option 4
+bool option1done = false;
+bool option3done =  false;
+int storedDuty = 0;
+float targAng = 0;
+float targDist = 0;
+
+const double pivotOffset = 2.0; //dist of from pan tilt assembly to wheel
+const double wheelBase = 11.1; //center to center of wheels in cm
+
+
+
 //functions
 void degreeIncrements();
 void servowrite(int pin, int angle, int numpulses);
@@ -322,23 +358,45 @@ void Option2(char optionstate, char keypressed, bool initdisplay)
 //  Option3 code
 //
 void Option3(char optionstate, char keypressed, bool initdisplay){
-  if(optionstate == 'A'){ 
-    oLCD.LCDInitialize(LANDSCAPE, initdisplay); 
-    rOuter = (xScreen - mScreen)/2.0; 
-    xC = xScreen / 2; 
-    yC = yScreen; 
-    rInner = 30; 
-    oLCD.fillCircle(xC, yC, rOuter - 2, RCB_PURPLE); 
-    radarFrame(); 
-    drawRay(30, 60); 
-    drawRay(60, 60); 
-    drawRay(90, 60); 
-    drawRay(120, 60); 
-    drawRay(150, 60); 
-    degreeIncrements(); 
-    } 
-    return; 
+  if(optionstate == 'A'){
+    char text[20];
+    int angle = 0;
+    int distance = 0;
+
+    oLCD.LCDInitialize(LANDSCAPE, initdisplay);
+    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
+   
+    sprintf(text, "ANGLE");
+    oLCD.print(text, 10, 10);
+
+    sprintf(text, "DEGREES");
+    oLCD.print(text, 92, 10);
+     
+    sprintf(text, "DISTANCE");
+    oLCD.print(text, 24, 30);
+
+    sprintf(text, "CM");
+    oLCD.print(text, 116, 30);
+   
+
+    //clearText(60, 10, 10, RCB_BLACK);
+    oLCD.setBackColor(RCB_BLACK);
+    oLCD.printNumI(angle, 60, 10, 3,' ');
+
+    //clearText(88, 30, 10,RCB_BLACK);
+    oLCD.setBackColor(RCB_BLACK);
+    oLCD.printNumI(distance, 88, 30, 4, ' ');
+
+    rOuter = (xScreen - mScreen)/2.0;
+    xC = xScreen / 2;
+    yC = yScreen;
+    rInner = 30;
+    radarFrame();
+    degreeIncrements();
+    }
+    return;
 }
+
 //
 //  Option4 code
 //
@@ -739,65 +797,255 @@ void TrackDistance()
 // *************************************************************************************
 void drawRay(int angle, int distance)
 {
-    float rad = angle * pivalue / 180.0;
-    float rLimit = rOuter - 2;
-    float rScaled = distance * rLimit / 120.0;
-    int xMid = xC + rScaled * cos(rad);
+    float rad = angle * pivalue / 180.0;  //convert angle from degrees to radians for trig functions
+    float rLimit = rOuter - 2;              // Maximum radius of the radar display
+    float rScaled = distance * rLimit / 120.0;  // scale measured distance (0-120cm) to radar radius in pixels
+
+    int xMid = xC + rScaled * cos(rad);    
     int yMid = yC - rScaled * sin(rad);
     int xEnd = xC + rLimit * cos(rad);
     int yEnd = yC - rLimit * sin(rad);
-    oLCD.drawLine(xC, yC, xMid, yMid, RCB_WHITE);
-    oLCD.drawLine(xMid, yMid, xEnd, yEnd, RCB_WHITE);
+    if (distance >= 120){
+        oLCD.drawLine(xC, yC, xEnd, yEnd, RCB_BLUE);
+    }
+    else{
+        oLCD.drawLine(xC, yC, xMid, yMid, RCB_BLUE);  //blue portion
+        oLCD.drawLine(xMid, yMid, xEnd, yEnd, RCB_RED); //Red portio
+    }
 }
-
-int getDistance()
+// Get and validate distance measurement from ultrasonic sensor
+int getDistance()                              
 {
     int d = calculateDistance(TRIGpin, ECHOpin);
+
+    // limit invalid readings to maximum radar range
     if (d <= 0 || d > 120)
     {
         d = 120;
     }
     return d;
 }
-
+// sweep servo from left to right and back while update radar display
 void degreeIncrements()
 {
+    theta_f = 0;
+    theta_r = 0;
+    targetFound = false;
+    resetSweep();
+    //forward sweep
     for (int angle = 15; angle <= 165; angle = angle + 2)
     {
         servowrite(tiltpin, 0, 10);
         servowrite(servopin, angle, 3);
+        delay(20);
         int distance = getDistance();
-        Serial.print(angle);
-        Serial.print(" ");
-        Serial.println(distance);
+       
+        if (distance < 120){
+            if(measurementCount == 0 || angle != previousAngle + 2 || abs(distance - (totalDistance / measurementCount)) > 10){
+                saveClosestGroup();
+                resetGroup(angle);
+            }
+
+            Serial.print("Angle: ");
+            Serial.print(angle);
+            Serial.print(" Distance: ");
+            Serial.println(distance);
+
+            endAngle = angle;
+            totalDistance = totalDistance + distance;
+            measurementCount++;
+            previousAngle = angle;
+            previousDistance = distance;
+        }
+        clearText(60, 10, 3, RCB_BLACK);
+        oLCD.setBackColor(RCB_BLACK);
+        oLCD.printNumI(angle, 60, 10, 3, ' ');
+       
+        clearText(88, 30, 3, RCB_BLACK);
+        oLCD.setBackColor(RCB_BLACK);
+        oLCD.printNumI(distance, 88, 30, 3, ' ');
+        drawRay(angle, distance);
     }
+
+    saveClosestGroup(); //check the final group
     delay(100);
-    for (int angle = 15; angle <= 165; angle = angle + 2)
+    if (closestCount >= 3){
+        theta_f = closestAngle;  //need to change calc
+        d_f = closestDistance;    //need to change calc
+    }
+    clearRadar();
+   
+    resetSweep();
+
+    // reverse sweep
+    for (int angle = 165; angle >= 15; angle = angle - 2)
     {
         servowrite(tiltpin, 0, 10);
         servowrite(servopin, angle, 3);
+        delay(20);
         int distance = getDistance();
-        Serial.print(angle);
-        Serial.print(" ");
-        Serial.println(distance);
+
+        if (distance < 120){
+            if(measurementCount == 0 || angle != previousAngle - 2 || abs(distance - (totalDistance / measurementCount)) > 10){
+                saveClosestGroup();
+                resetGroup(angle);
+            }
+
+            Serial.print("Angle: ");
+            Serial.print(angle);
+            Serial.print(" Distance: ");
+            Serial.println(distance);
+           
+            endAngle = angle;
+            totalDistance = totalDistance + distance;
+            measurementCount++;
+            previousAngle = angle;
+            previousDistance = distance;
+        }
+       
+        clearText(60, 10, 3, RCB_BLACK);
+        oLCD.setBackColor(RCB_BLACK);
+        oLCD.printNumI(angle, 60, 10, 3, ' ');
+       
+        clearText(88, 30, 3, RCB_BLACK);
+        oLCD.setBackColor(RCB_BLACK);
+        oLCD.printNumI(distance, 88, 30, 3, ' ');
+        drawRay(angle, distance);
     }
+
+    saveClosestGroup();
+
+    if (closestCount >= 3){
+        theta_r = closestAngle;
+        d_r = closestDistance;
+    }
+
     delay(100);
+
+    calculateTarget();       // calculate and save final target
+
     servowrite(servopin, 90, 10);
+    oLCD.setTextColor(RCB_WHITE, RCB_BLACK);
+
+   
+    displayTarget();                  //display final target angle
+
 }
+
+// Clear radar area and redraw radar frame
 void clearRadar()
 {
-    oLCD.fillCircle(xC, yC, rOuter - 2, RCB_PURPLE);
+    char text[20];
+   
+    for(int r = 1; r < rOuter; r++){        
+    oLCD.drawCircle(xC, yC, r, RCB_PURPLE);
+    }    
     radarFrame();
+
+    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
+   
+    sprintf(text, "ANGLE");
+    oLCD.print(text, 10, 10);
+
+    sprintf(text, "DEGREES");
+    oLCD.print(text, 92, 10);
+     
+    sprintf(text, "DISTANCE");
+    oLCD.print(text, 24, 30);
+
+    sprintf(text, "CM");
+    oLCD.print(text, 116, 30);
 }
-void radarFrame()
-{
+
+// Draw a white reference line at the specified angles
+void drawWhiteLine(int angle){
+    float rad = angle * pivalue / 180.0;      //scale cm to pixels
+    int xEnd = xC + rOuter * cos(rad);        //Object x-locatoin
+    int yEnd = yC - rOuter * sin(rad);        //object y-location
+
+    oLCD.drawLine(xC, yC, xEnd, yEnd, RCB_WHITE);
+}
+void calculateTarget(){
+    if (theta_f > 0 && theta_r > 0){
+        theta_target = (theta_f + theta_r) / 2.0;
+        d_target = (d_f + d_r) / 2.0;
+        targetFound = true;
+    }
+    else{
+        targetFound = false;
+    }
+}
+void radarFrame(){
     oLCD.drawCircle(xC, yC, rOuter, RCB_WHITE);
     oLCD.drawCircle(xC, yC, rInner, RCB_WHITE);
+
+    drawWhiteLine(30);
+    drawWhiteLine(60);
+    drawWhiteLine(90);
+    drawWhiteLine(120);
+    drawWhiteLine(150);
+}
+void resetGroup(int angle){
+    startAngle = angle;
+    endAngle = angle;
+    totalDistance = 0;
+    measurementCount = 0;
+}
+void saveClosestGroup(){
+     if (measurementCount >= 3){
+            // calculate the average distance of the group
+            float groupDistance = totalDistance / measurementCount;
+            //check if this group is closer that the previous closest grou
+            if (groupDistance < closestDistance){
+                closestDistance = groupDistance;
+                closestAngle = (startAngle + endAngle) / 2.0;
+                closestCount = measurementCount;
+                closestStartAngle = startAngle;
+                closestEndAngle = endAngle;
+        }
+    }
+}
+void resetSweep(){
+    startAngle = 0;
+    endAngle = 0;
+    totalDistance = 0;
+    measurementCount = 0;
+
+    //reset previouse measurements
+    previousAngle = 0;
+    previousDistance = 120;
+
+    closestDistance = 120;
+    closestAngle = 0;
+    closestCount = 0;
+    closestStartAngle = 0;
+    closestEndAngle = 0;
+}
+void displayTarget(){
+
+    DrawBox(12, 50, 130, 70, RCB_BLACK);    //black box
+
+    oLCD.setTextColor(RCB_WHITE, RCB_BLACK);
+
+    if (targetFound == true){
+        oLCD.print("TARGET", 40, 58);
+
+        oLCD.printNumI((int)theta_target, 25, 78, 3, ' ');
+        oLCD.print("DEGREES", 55, 78);
+
+        oLCD.printNumI((int)d_target, 40, 98, 3, ' ');
+        oLCD.print("CM", 70, 98);
+    }
+    else{
+        oLCD.print("TARGET ", 35, 68);
+        oLCD.print("NOT FOUND", 20, 88);
+    }
 }
 void DrawBox(int x1, int y1, int x2, int y2, uint32_t color)
 {
     oLCD.fillRoundRect(x1, y1, x2, y2, 3, color);
 }
+
 // *************************************************************************************
 // END: OPTION3 SUPPORT
 // *************************************************************************************
@@ -805,6 +1053,84 @@ void DrawBox(int x1, int y1, int x2, int y2, uint32_t color)
 // *************************************************************************************
 // START: OPTION4 SUPPORT
 // *************************************************************************************
+
+void ShowTarget(){
+    char text[20];
+
+    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
+
+    sprintf(text, "TARGET DIR");
+    oLCD.print(text, CENTER, 15);
+   
+    oLCD.printNumf(targAng, 1, CENTER, 31);
+    sprintf(text, "DEGREES", targAng);
+    oLCD.print(text, CENTER, 31);
+
+    sprintf(text, "TARGET DIST");
+    oLCD.print(text, CENTER, 47);
+
+    oLCD.printNumF(targDist, 1, CENTER, 86);
+    sprintf(text, "CM", targDist);
+    oLCD.print(text, CENTER, 63);
+}
+
+void DrivetoPivot(){
+    double circumference = pivalue * WDIA;
+    unsigned long counttopivot = (pivotOffset * CPR) / circumference + 0.5;
+
+    leftEncoderCount = 0;
+    rightEncoderCount = 0;
+
+    digitalWrite(lphasedir, HIGH);
+    digitalWrite(rphasedir, HIGH);
+    ledcWrite(lpwmChannel, 30 * maxDutyCycle / 100);
+    ledcWrite(rpwmChannel, 30 * maxDutyCycle / 100);
+
+    while(leftEncoderCount < counttopivot){
+        delay(1);
+    }
+
+    ledcWrite(lpwmChannel, 0);
+    ledcWrite(rpwmChannel, 0);
+}
+
+void WaitforSwitch(int pin){
+    while(digitalRead(pin) == HIGH){
+        delay(10);
+    }
+}
+
+void MoveDebtoTarget(){
+    double circumference = pivalue * WDIA;
+    unsigned long counttotarget = (targDist * CPR) / circumference + 0.5;
+
+    leftEncoderCount = 0;
+    rightEncoderCount = 0;
+
+    digitalWrite(lphasedir, HIGH);
+    digitalWrite(rphasedir, HIGH);
+
+    double rduty = rdutyStraight;
+    ledcWrite(lpwmChannel, storedDuty * maxDutyCycle / 100.0);
+    ledcWrite(rpwmChannel, rduty * maxDutyCycle / 100.0);
+
+    while(leftEncoderCount < counttotarget){
+        long error = (long)leftEncoderCount - (long)rightEncoderCount;
+        rduty = rduty + (error * 0.05);
+
+        if(rduty > 80.0){
+            rduty = 80.0;
+        }
+        else if(rduty < 20.0){
+            rduty = 20.0;
+        }
+        ledcWrite(rpwmChannel, rduty * maxDutyCycle / 100.0);
+
+        delay(200);
+        double avgCounts = (leftEncoderCount + rightEncoderCount) / 2.0;
+        //currentDist = avgCounts * circumference / CPR;
+    }
+}
 
 // *************************************************************************************
 // END: OPTION4 SUPPORT
