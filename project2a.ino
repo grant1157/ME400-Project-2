@@ -1120,7 +1120,7 @@ void ShowTarget(){
     sprintf(text, "TARGET DIR");
     oLCD.print(text, CENTER, 15);
    
-    oLCD.printNumf(targAng, 1, CENTER, 31);
+    oLCD.printNumF(targAng, 1, CENTER, 31);
     sprintf(text, "DEGREES", targAng);
     oLCD.print(text, CENTER, 31);
 
