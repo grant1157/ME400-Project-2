@@ -329,30 +329,55 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
 //
 void Option2(char optionstate, char keypressed, bool initdisplay)
 {
- // empty array to hold text 
-    char text[20]; 
-    
-    oLCD.LCDInitialize(LANDSCAPE, initdisplay); 
-    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE); 
-    
-    if (optionstate == 'A') 
-    { 
-    sprintf(text, "PREPARING"); 
-    oLCD.print(text, CENTER, 24); 
-    sprintf(text, "TO"); 
-    oLCD.print(text, CENTER, 40); 
-    sprintf(text, "ACQUIRE"); 
-    oLCD.print(text, CENTER, 56); 
-    sprintf(text, "TARGET"); 
-    oLCD.print(text, CENTER, 72); 
-    }
-    else if (optionstate == 'B') 
-    { sprintf(text, "TARGET DIST"); 
-    oLCD.print(text, CENTER, 24); 
-    sprintf(text, "TARGET ANGLE");
-    oLCD.print(text, CENTER, 56);
-    }
+    oLCD.OPTION_STATE = 'A';
 
+    // holds the words before they are printed
+    char text[20];
+
+    // Setting up target distance and target angle variables
+    float TargetAngle = 60.0; 
+    float TargetDist = 50.0;
+
+    // clears the screen and sets the text/background colors
+    oLCD.LCDInitialize(LANDSCAPE, initdisplay);
+    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE); 
+
+    // uses sprintf to copy the words into text in the form of a char array then prints the startup screen text
+    sprintf(text, "PREPARING");
+    oLCD.print(text, CENTER, 38);
+    sprintf(text, "TO");
+    oLCD.print(text, CENTER, 54);
+    sprintf(text, "ACQUIRE");
+    oLCD.print(text, CENTER, 70);
+    sprintf(text, "TARGET");
+    oLCD.print(text, CENTER, 86);
+    
+    delay(3000); 
+
+    // Initial Ultrasonic sweep 
+    // Sweep();
+    
+    UpdateDisplay2((int)TargetDist, (int)TargetAngle);
+
+    while (TargetDist > 2.0)
+    {
+        // Stops if the return button is pressed stop the motors and returns to main menu
+        unsigned long newKey = oIR.GetKeyPressed();
+        if (newKey == KEY_RETURN)
+        {
+            ledcWrite(rpwmChannel, 0);
+            ledcWrite(lpwmChannel, 0);
+
+            ShowDisplay(SC_MAIN, ' ', ' ');
+            return; 
+        }
+
+        DiffTurn(TargetAngle);
+        delay(500); 
+        SeekDrive(TargetDist);
+        // Scanning stuff 
+        UpdateDisplay2((int)TargetDist, (int)TargetAngle);
+    }    
 }
 //
 //  Option3 code
@@ -716,6 +741,26 @@ void UpdateDisplay(int Rduty, int LenC, int RenC, int Error)
 // *************************************************************************************
 // START: OPTION2 SUPPORT
 // *************************************************************************************
+void UpdateDisplay2(int dist, int angle)
+{   
+    char text[20]; 
+
+    // Prints words to screen
+    sprintf(text, "TARGET DIST");
+    oLCD.print(text, CENTER, 38);
+    
+    oLCD.printNumF(dist, 1, CENTER, 54); 
+    sprintf(text, "CM");
+    oLCD.print(text, CENTER, 54);
+
+    sprintf(text, "TARGET ANGLE");
+    oLCD.print(text, CENTER, 70);
+    
+    oLCD.printNumF(angle, 1, CENTER, 86); 
+    sprintf(text, "DEGREES");
+    oLCD.print(text, CENTER, 86);
+}
+
 void DiffTurn(float angle) // turn if angle of robot +/- 10 degrees of centerline 
 { 
     // resets Encoder Counts 
@@ -750,7 +795,9 @@ void DiffTurn(float angle) // turn if angle of robot +/- 10 degrees of centerlin
 
 void SeekDrive(float dist) 
 {
-    int counttotarget = 0; 
+    int counttotarget = 0;
+    float Newdist = 0.0;  
+    double circumference = pivalue * WDIA;
 
     // Set both motors forward
     digitalWrite(lphasedir, HIGH); 
@@ -759,35 +806,46 @@ void SeekDrive(float dist)
     // Using incremental distance of 20cm
     if (dist > 22.0)
     {
-        // Default to 20cm
-        counttotarget = 20; 
+        Newdist = (dist - 2)/2; 
     } 
     else if (dist <= 22.0)
     {
         // Once in range find true distance within 2cm of object
-        float Truedist = dist - 2;
-        double circumference = pivalue * WDIA;
-        counttotarget = (((double)Truedist * (double)CPR) / (double)circumference);
+        Newdist = dist - 2;
     }
 
-    // Set duty cycle to 70%, move until count target is reached
-    ledcWrite(lpwmChannel, 70.0 * maxDutyCycle / 100.0); 
-    ledcWrite(rpwmChannel, 70.0 * maxDutyCycle / 100.0);
-    if (leftEncoderCount >= counttotarget)
-    {
-        ledcWrite(lpwmChannel, 0); 
-        ledcWrite(rpwmChannel, 0);
+    // Define counts until target using Newdist
+    counttotarget = (((double)Newdist * (double)CPR) / (double)circumference);
+
+    // Set duty cycle to 60%, move until count target is reached
+    ledcWrite(lpwmChannel, 60.0 * maxDutyCycle / 100.0); 
+    ledcWrite(rpwmChannel, 60.0 * maxDutyCycle / 100.0);
+    
+    while (leftEncoderCount < counttotarget)
+    { 
+        DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.75; 
+            
+        //Adjusting right duty cycle for error 
+        rdutyStraight = 60.0 + (0.1 * (double)DriveError );
+
+        //Failsafe duty cycle fix 
+        if(rdutyStraight > 70.0)
+        {
+            rdutyStraight = 70.0; 
+        } 
+        else if (rdutyStraight < 40.0)
+        {
+            rdutyStraight = 40.0; 
+        }
+
+        // reset dutycycle
+        ledcWrite(rpwmChannel, (float)rdutyStraight * maxDutyCycle / 100.0);
+        delay(20);        
     }
-} 
-
-void Sweep() 
-{ 
-    // Use ultrasonic to seek target determine angle and distance 
-} 
-
-void TrackDistance() 
-{ 
-        // Something to keep within 2cm of target 
+    
+    // Stop motors when rover is 2cm from target
+    ledcWrite(lpwmChannel, 0); 
+    ledcWrite(rpwmChannel, 0);
 }
 // *************************************************************************************
 // END: OPTION2 SUPPORT
