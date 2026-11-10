@@ -853,6 +853,7 @@ void SeekDrive(float dist)
 // *************************************************************************************
 // START: OPTION3 SUPPORT
 // *************************************************************************************
+//Draw radar lines based on measured angle and distance
 void drawRay(int angle, int distance)
 {
     float rad = angle * pivalue / 180.0;  //convert angle from degrees to radians for trig functions
@@ -1023,6 +1024,7 @@ void drawWhiteLine(int angle){
 
     oLCD.drawLine(xC, yC, xEnd, yEnd, RCB_WHITE);
 }
+//calculate final target angle and distance from both sweeps
 void calculateTarget(){
     if (theta_f > 0 && theta_r > 0){
         theta_target = (theta_f + theta_r) / 2.0;
@@ -1033,6 +1035,7 @@ void calculateTarget(){
         targetFound = false;
     }
 }
+//draw radar circles and white reference lines
 void radarFrame(){
     oLCD.drawCircle(xC, yC, rOuter, RCB_WHITE);
     oLCD.drawCircle(xC, yC, rInner, RCB_WHITE);
@@ -1043,12 +1046,14 @@ void radarFrame(){
     drawWhiteLine(120);
     drawWhiteLine(150);
 }
+//reset measurements when starting a new object group
 void resetGroup(int angle){
     startAngle = angle;
     endAngle = angle;
     totalDistance = 0;
     measurementCount = 0;
 }
+//saves the closest valid object group detected
 void saveClosestGroup(){
      if (measurementCount >= 3){
             // calculate the average distance of the group
@@ -1063,6 +1068,7 @@ void saveClosestGroup(){
         }
     }
 }
+//Reset all measurments before starting a new sweep
 void resetSweep(){
     startAngle = 0;
     endAngle = 0;
@@ -1079,6 +1085,7 @@ void resetSweep(){
     closestStartAngle = 0;
     closestEndAngle = 0;
 }
+//display final target angle and distance on LCD
 void displayTarget(){
 
     DrawBox(12, 50, 130, 70, RCB_BLACK);    //black box
@@ -1099,6 +1106,7 @@ void displayTarget(){
         oLCD.print("NOT FOUND", 20, 88);
     }
 }
+//draws a filled rounded rectangle on LCD
 void DrawBox(int x1, int y1, int x2, int y2, uint32_t color)
 {
     oLCD.fillRoundRect(x1, y1, x2, y2, 3, color);
