@@ -854,65 +854,68 @@ void SeekDrive(float dist)
 // START: OPTION3 SUPPORT
 // *************************************************************************************
 //Draw radar lines based on measured angle and distance
+// Draw radar lines based on measured angle and distance
 void drawRay(int angle, int distance)
 {
     float rad = angle * pivalue / 180.0;  //convert angle from degrees to radians for trig functions
     float rLimit = rOuter - 2;              // Maximum radius of the radar display
     float rScaled = distance * rLimit / 120.0;  // scale measured distance (0-120cm) to radar radius in pixels
-
+    // calculate endpoint of measured distance
     int xMid = xC + rScaled * cos(rad);    
     int yMid = yC - rScaled * sin(rad);
+    // calculate endpoint at outer radar cicrle
     int xEnd = xC + rLimit * cos(rad);
     int yEnd = yC - rLimit * sin(rad);
+    // if no object detected within 120cm draw blue line
     if (distance >= 120){
         oLCD.drawLine(xC, yC, xEnd, yEnd, RCB_BLUE);
     }
     else{
-        oLCD.drawLine(xC, yC, xMid, yMid, RCB_BLUE);  //blue portion
-        oLCD.drawLine(xMid, yMid, xEnd, yEnd, RCB_RED); //Red portio
+        // draw blue line from center to detected object
+        oLCD.drawLine(xC, yC, xMid, yMid, RCB_BLUE);    
+        // draw red line from detected object to outer circle
+        oLCD.drawLine(xMid, yMid, xEnd, yEnd, RCB_RED);  
     }
 }
 // Get and validate distance measurement from ultrasonic sensor
 int getDistance()                              
 {
+    //measure distance using ultrasonic sensor
     int d = calculateDistance(TRIGpin, ECHOpin);
-
-    // limit invalid readings to maximum radar range
-    if (d <= 0 || d > 120)
-    {
+    if (d <= 0 || d > 120){                         // set out-of-range readings to 120cm
         d = 120;
     }
-    return d;
+    return d;                                       //return measured distance in cm
 }
 // sweep servo from left to right and back while update radar display
 void degreeIncrements()
 {
+    //reset target angles & option 3 status
     theta_f = 0;
     theta_r = 0;
-    targetFound = false;
-    resetSweep();
-    //forward sweep
+    option3done = false;
+    resetSweep();                 // reset measurements before starting sweep
+    //forward sweep- 15 to 165 degrees by 2 degrees
     for (int angle = 15; angle <= 165; angle = angle + 2)
     {
+        // keep tilt servo at 0 and move pan servo
         servowrite(tiltpin, 0, 10);
         servowrite(servopin, angle, 3);
         delay(20);
-        int distance = getDistance();
-       
+        int distance = getDistance();    //get distance measured by sensor in cm
+
+        //only process objects closer than 120cm
         if (distance < 120){
-            if(measurementCount == 0 || angle != previousAngle + 2 || abs(distance - (totalDistance / measurementCount)) > 10){
+            //start a new group if this is the first detection
+            //angles are not consecutive, or distance changes by more than 10 cm
+            if(measurementCount == 0 || angle != previousAngle + 2 || abs(distance - (totalDistance / measurementCount)) > 10){        
                 saveClosestGroup();
                 resetGroup(angle);
             }
-
-            Serial.print("Angle: ");
-            Serial.print(angle);
-            Serial.print(" Distance: ");
-            Serial.println(distance);
-
-            endAngle = angle;
-            totalDistance = totalDistance + distance;
+            endAngle = angle;                                   //update ending angle of detected object
+            totalDistance = totalDistance + distance;           // add distance to total for averaging
             measurementCount++;
+            //storing previous angle and distance
             previousAngle = angle;
             previousDistance = distance;
         }
@@ -923,40 +926,45 @@ void degreeIncrements()
         clearText(88, 30, 3, RCB_BLACK);
         oLCD.setBackColor(RCB_BLACK);
         oLCD.printNumI(distance, 88, 30, 3, ' ');
+
+        //draw radar line for current angle and distance
         drawRay(angle, distance);
     }
 
-    saveClosestGroup(); //check the final group
+    saveClosestGroup();    //save final object group from forward sweep
     delay(100);
+
+    //save closest object from forward sweep if at least 3 measurements
     if (closestCount >= 3){
-        theta_f = closestAngle;  //need to change calc
-        d_f = closestDistance;    //need to change calc
+        theta_f = closestAngle;  
+        d_f = closestDistance;    
     }
+    // clear radar and reset measurements for reverse sweep
     clearRadar();
-   
     resetSweep();
 
-    // reverse sweep
+    // reverse sweep- from 165 to 15 degrees by 2 degrees
     for (int angle = 165; angle >= 15; angle = angle - 2)
     {
+        // keep tilt servo at 0 and move pan servo
         servowrite(tiltpin, 0, 10);
         servowrite(servopin, angle, 3);
         delay(20);
+
         int distance = getDistance();
 
+        // only process objects closer than 120 cm
         if (distance < 120){
+            // start new group if first detection , gap in angles, distance changes by more than 10 cm from group average
             if(measurementCount == 0 || angle != previousAngle - 2 || abs(distance - (totalDistance / measurementCount)) > 10){
+               
                 saveClosestGroup();
                 resetGroup(angle);
             }
-
-            Serial.print("Angle: ");
-            Serial.print(angle);
-            Serial.print(" Distance: ");
-            Serial.println(distance);
-           
+            // update ending angle and add distance to group total    
             endAngle = angle;
             totalDistance = totalDistance + distance;
+            //count measurement and store previous values
             measurementCount++;
             previousAngle = angle;
             previousDistance = distance;
@@ -969,11 +977,15 @@ void degreeIncrements()
         clearText(88, 30, 3, RCB_BLACK);
         oLCD.setBackColor(RCB_BLACK);
         oLCD.printNumI(distance, 88, 30, 3, ' ');
+
+        //draw radar line for current angle and distance
         drawRay(angle, distance);
     }
 
+    // save final object group from reverse sweep
     saveClosestGroup();
 
+    //save closest object from reverse sweep if at least 3 measurements
     if (closestCount >= 3){
         theta_r = closestAngle;
         d_r = closestDistance;
@@ -981,25 +993,25 @@ void degreeIncrements()
 
     delay(100);
 
-    calculateTarget();       // calculate and save final target
+    calculateTarget();       // calculate final target using both sweeps
 
-    servowrite(servopin, 90, 10);
-    oLCD.setTextColor(RCB_WHITE, RCB_BLACK);
+    servowrite(servopin, 90, 10);              
+    oLCD.setTextColor(RCB_WHITE, RCB_BLACK);   // set display text color to white with black background
 
    
-    displayTarget();                  //display final target angle
+    displayTarget();                  //display final target angle and distance
 
 }
-
-// Clear radar area and redraw radar frame
-void clearRadar()
-{
+// Clear radar area and redraw circles and labels
+void clearRadar(){
     char text[20];
-   
+
+    // cover old radar lines with purple circles
     for(int r = 1; r < rOuter; r++){        
     oLCD.drawCircle(xC, yC, r, RCB_PURPLE);
-    }    
-    radarFrame();
+    }
+       
+    radarFrame();            //redraw radar circles and reference lines
 
     oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
    
@@ -1019,57 +1031,64 @@ void clearRadar()
 // Draw a white reference line at the specified angles
 void drawWhiteLine(int angle){
     float rad = angle * pivalue / 180.0;      //scale cm to pixels
-    int xEnd = xC + rOuter * cos(rad);        //Object x-locatoin
-    int yEnd = yC - rOuter * sin(rad);        //object y-location
+    int xEnd = xC + rOuter * cos(rad);        //calc endpoint of reference line
+    int yEnd = yC - rOuter * sin(rad);        //calc endpoint of reference line
 
-    oLCD.drawLine(xC, yC, xEnd, yEnd, RCB_WHITE);
+    oLCD.drawLine(xC, yC, xEnd, yEnd, RCB_WHITE);   //draw white line from center to outer circle
 }
 //calculate final target angle and distance from both sweeps
 void calculateTarget(){
+    //check if both sweeps detect a target
     if (theta_f > 0 && theta_r > 0){
         theta_target = (theta_f + theta_r) / 2.0;
         d_target = (d_f + d_r) / 2.0;
-        targetFound = true;
+        option3done = true;                  //mark option 3 done complete
     }
     else{
-        targetFound = false;
+        option3done = false;                  //mark option 3 as incomplete if target not detected
     }
 }
-//draw radar circles and white reference lines
+//draw radar circles and white referemce lines
 void radarFrame(){
+    //draw outer and inner radar circle
     oLCD.drawCircle(xC, yC, rOuter, RCB_WHITE);
     oLCD.drawCircle(xC, yC, rInner, RCB_WHITE);
-
+    // draw reference lines at specified angles
     drawWhiteLine(30);
     drawWhiteLine(60);
     drawWhiteLine(90);
     drawWhiteLine(120);
     drawWhiteLine(150);
 }
-//reset measurements when starting a new object group
+// reset measurements when starting a new object group
 void resetGroup(int angle){
+    //set starting and ending angle to current angle
     startAngle = angle;
     endAngle = angle;
+    // Reset distance total and measurement count
     totalDistance = 0;
     measurementCount = 0;
 }
 //saves the closest valid object group detected
 void saveClosestGroup(){
+    // only accepts groups with at least 3 measurements
      if (measurementCount >= 3){
             // calculate the average distance of the group
             float groupDistance = totalDistance / measurementCount;
             //check if this group is closer that the previous closest grou
             if (groupDistance < closestDistance){
-                closestDistance = groupDistance;
-                closestAngle = (startAngle + endAngle) / 2.0;
-                closestCount = measurementCount;
+                closestDistance = groupDistance;                // save closest group's average distance
+                closestAngle = (startAngle + endAngle) / 2.0;   //calculate center angle of object group
+                // save number of measurements and angle boundaries
+                closestCount = measurementCount;            
                 closestStartAngle = startAngle;
                 closestEndAngle = endAngle;
         }
     }
 }
-//Reset all measurments before starting a new sweep
+// Reset all measurements before starting a new sweep
 void resetSweep(){
+    // reset current object group measurements
     startAngle = 0;
     endAngle = 0;
     totalDistance = 0;
@@ -1079,15 +1098,15 @@ void resetSweep(){
     previousAngle = 0;
     previousDistance = 120;
 
+    // reset closest object information
     closestDistance = 120;
     closestAngle = 0;
     closestCount = 0;
     closestStartAngle = 0;
     closestEndAngle = 0;
 }
-//display final target angle and distance on LCD
+// display final target angle and distance on LCD
 void displayTarget(){
-
     DrawBox(12, 50, 130, 70, RCB_BLACK);    //black box
 
     oLCD.setTextColor(RCB_WHITE, RCB_BLACK);
