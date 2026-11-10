@@ -335,8 +335,8 @@ void Option2(char optionstate, char keypressed, bool initdisplay)
     char text[20];
 
     // Setting up target distance and target angle variables
-    float TargetAngle = 60.0; 
-    float TargetDist = 50.0;
+    int TargetAngle = 0; 
+    int TargetDist = 0;
 
     // clears the screen and sets the text/background colors
     oLCD.LCDInitialize(LANDSCAPE, initdisplay);
@@ -351,16 +351,17 @@ void Option2(char optionstate, char keypressed, bool initdisplay)
     oLCD.print(text, CENTER, 70);
     sprintf(text, "TARGET");
     oLCD.print(text, CENTER, 86);
-    
-    delay(3000); 
+    delay(1000); 
 
     // Initial Ultrasonic sweep 
-    // Sweep();
-    
-    UpdateDisplay2((int)TargetDist, (int)TargetAngle);
+    Sweep(TargetAngle); 
+    TargetDist = getDistance();
 
-    while (TargetDist > 2.0)
+    // Run sequence until Deb is within 2cm of
+    while (TargetDist > 12.0)
     {
+        UpdateDisplay2((int)TargetDist, (int)TargetAngle); 
+
         // Stops if the return button is pressed stop the motors and returns to main menu
         unsigned long newKey = oIR.GetKeyPressed();
         if (newKey == KEY_RETURN)
@@ -372,12 +373,33 @@ void Option2(char optionstate, char keypressed, bool initdisplay)
             return; 
         }
 
+        // Sequence of turn towards target, move Deb towards target, scan for target, 
         DiffTurn(TargetAngle);
         delay(500); 
         SeekDrive(TargetDist);
-        // Scanning stuff 
-        UpdateDisplay2((int)TargetDist, (int)TargetAngle);
-    }    
+        delay(1000);
+
+        Sweep(TargetAngle); 
+        TargetDist = getDistance();
+    }
+    if (TargetDist > 2.0 && TargetDist <= 12.0)
+    {
+        // Repeat sequence for small distance
+        DiffTurn(TargetAngle);
+        delay(500); 
+        SeekDrive(TargetDist);
+    }
+    Sweep(TargetAngle); 
+    TargetDist = getDistance();
+    ledcWrite(lpwmChannel, 0); 
+    ledcWrite(rpwmChannel, 0); 
+    UpdateDisplay2((int)TargetDist, (int)TargetAngle);
+    // Stops if the return button is pressed stop the motors and returns to main menu
+    unsigned long newKey = oIR.GetKeyPressed();
+    if (newKey == KEY_RETURN)
+    {
+        return; 
+    }
 }
 //
 //  Option3 code
