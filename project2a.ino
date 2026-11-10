@@ -327,6 +327,211 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
 //
 //  Option2 code
 //
+void ShowDisplay(screen val, char optionstate, char keypressed, bool initdisplay = false);
+// *************************************************************************************
+// BEGIN: USER FUNCTION
+// *************************************************************************************
+void clearText(int32_t x, int32_t y, int32_t width, uint16_t color)
+{
+    int32_t xStart;
+
+    if (x == CENTER)
+        xStart = (oLCD.width() - width) / 2;
+    else
+        xStart = x;
+
+    oLCD.fillRect(xStart, y-6, width, 15, color);
+}
+//
+//  Option1 code
+//
+void Option1(char optionstate, char keypressed, bool initdisplay)
+{
+   // holds the words before they are printed
+    char text[20];
+
+    // static is important because it will stay what it previously was as we progress
+    static String Dcycle = "";
+    static bool DriveMode = false;
+
+    // clears the screen and sets the text/background colors
+    oLCD.LCDInitialize(LANDSCAPE, initdisplay);
+    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
+
+    // if return is pressed with less than 2 digits it will stay on the screen
+    if (optionstate == 'B' && Dcycle.length() != 2)
+    {
+        // A for entry screen code
+        optionstate = 'A';
+        oLCD.OPTION_STATE = 'A';
+    }
+    
+    if(DriveMode == true)
+    {
+        optionstate = 'B'; 
+    }
+
+    if (optionstate == 'A')
+    {
+        // entry screen text
+        sprintf(text, "DUTY CYCLE");
+        oLCD.print(text, CENTER, 15);
+        sprintf(text, "PRESS");
+        oLCD.print(text, CENTER, 52);
+        sprintf(text, "<RETURN>");
+        oLCD.print(text, CENTER, 68);
+        sprintf(text, "WHEN");
+        oLCD.print(text, CENTER, 84);
+        sprintf(text, "READY");
+        oLCD.print(text, CENTER, 100);
+
+        // Option 1 was opened the first time
+        if (keypressed == ' ')
+        {
+            Dcycle = "";
+            clearText(CENTER, 32, 48, RCB_BLACK);
+        }
+        // ignores return if less than 2 digits. Repastes what was already typed
+        else if (keypressed == 'R' && Dcycle.length() != 2)
+        {
+            clearText(CENTER, 32, 48, RCB_BLACK);
+            if (Dcycle.length() > 0)
+            {
+                oLCD.setBackColor(RCB_BLACK);
+                oLCD.printNumI(Dcycle.toInt(), CENTER, 32, 3, ' ');
+            }
+        }
+        // If key besides RETURN is pressed
+        else
+        {
+            // deletes the last digit
+            if (keypressed == 'B')
+            {
+                if (Dcycle.length() > 0)
+                {
+                    Dcycle.remove(Dcycle.length() - 1);
+                }
+            }
+            // conditional to check that the number is valid
+            else if (Dcycle.length() == 0)
+            {
+                if (keypressed == '0' || keypressed == '1' || keypressed == '2' || keypressed == '3' || keypressed == '8' || keypressed == '9')
+                {
+                    Dcycle = "";
+                }
+                else if (keypressed == '4' || keypressed == '5' || keypressed == '6' || keypressed == '7')
+                {
+                    Dcycle = Dcycle + keypressed;
+                }
+                else if (keypressed == 'B')
+                {
+                    Dcycle = "";
+                }
+            }
+            else if (Dcycle == "7" && keypressed != ' ' && keypressed != 'B') // Default every 2-digit # starting with 7 to 70
+            {
+                Dcycle = "70";
+            }
+            else if (Dcycle == "4" && keypressed != ' ' || Dcycle == "5" && keypressed != ' ' || Dcycle == "6" && keypressed != ' ') // Build string with #s
+            {
+                if (keypressed != 'B')
+                {
+                    Dcycle = Dcycle + keypressed;
+                }
+            }
+            else if (Dcycle.length() == 2) // #s above 2-digits not allowed
+            {
+                Dcycle = Dcycle;
+            }
+
+            // shows a blankbox after things are deleated
+            clearText(CENTER, 32, 20, RCB_BLACK);
+            if (Dcycle.length() > 0)
+            {
+
+                oLCD.setBackColor(RCB_BLACK);
+                oLCD.printNumI(Dcycle.toInt(), CENTER, 32, 3, ' ');
+            }
+        }
+    }
+    // second screen of option 1
+    else if (optionstate == 'B')
+    {
+        // circumference (cm)
+        double circumference = pivalue * WDIA;
+        // equation to store the number of counts needed to reach the target
+        const unsigned long counttotarget = (((double)TG * (double)CPR) / (double)circumference);
+        
+        // resets Encoder Counts
+        leftEncoderCount = 0;
+        rightEncoderCount = 0;
+            // moves both motors forward at the set duty cycle
+            digitalWrite(lphasedir, HIGH);
+            digitalWrite(rphasedir, HIGH);
+            
+            // left motor stays at the entered duty for the entire run
+            ledcWrite(lpwmChannel, (float)Dcycle.toInt() * maxDutyCycle / 100.0);
+            // right motor starts at the entered duty then will be corrected
+            rdutyStraight = (float)Dcycle.toInt(); 
+            ledcWrite(rpwmChannel, rdutyStraight * maxDutyCycle / 100.0);
+
+            // uses sprintf to copy the words into text in the form of a char array. Then prints the screen text
+            sprintf(text, "RIGHT DUTY CYCLE");
+            oLCD.print(text, CENTER, 10);
+            sprintf(text, "LEFT COUNT");
+            oLCD.print(text, CENTER, 38);
+            sprintf(text, "RIGHT COUNT");
+            oLCD.print(text, CENTER, 66);
+            sprintf(text, "ERROR");
+            oLCD.print(text, CENTER, 94);
+        
+        // keep going till the left wheel reaches the counttotarget
+        while (leftEncoderCount < counttotarget)
+        {
+            //stops if the power button is pressed stop the motors and show the current screen
+            unsigned long newKey = oIR.GetKeyPressed();
+            if(newKey == KEY_POWER){
+                 ledcWrite(rpwmChannel, 0);
+                 ledcWrite(lpwmChannel, 0);
+
+                 break;
+            }
+         
+            DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.77; 
+            
+            //Adjusting right duty cycle for error 
+            rdutyStraight = Dcycle.toInt() + (0.075 * (double)DriveError);
+
+            //Failsafe duty cycle fix 
+            if(rdutyStraight > 80.0)
+            {
+                rdutyStraight = 80.0; 
+            } 
+            else if (rdutyStraight < 20.0)
+            {
+                rdutyStraight = 20.0; 
+            }
+
+            ledcWrite(rpwmChannel, (float)rdutyStraight * maxDutyCycle / 100.0);
+            UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError); 
+            delay(20);        
+    }
+        DriveMode = false; 
+        // stops motors when target is reached
+        ledcWrite(lpwmChannel, 0);
+        ledcWrite(rpwmChannel, 0);
+        
+        UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError);
+        if (leftEncoderCount >= counttotarget)
+        {
+            option1done = true; 
+        }
+        oLCD.OPTION_STATE = 'A';
+    }
+}
+//
+//  Option2 code
+//
 void Option2(char optionstate, char keypressed, bool initdisplay)
 {
     oLCD.OPTION_STATE = 'A';
@@ -354,8 +559,7 @@ void Option2(char optionstate, char keypressed, bool initdisplay)
     delay(1000); 
 
     // Initial Ultrasonic sweep 
-    Sweep(TargetAngle); 
-    TargetDist = getDistance();
+    Sweep(TargetAngle, TargetDist);
 
     // Run sequence until Deb is within 2cm of
     while (TargetDist > 12.0)
@@ -379,8 +583,7 @@ void Option2(char optionstate, char keypressed, bool initdisplay)
         SeekDrive(TargetDist);
         delay(1000);
 
-        Sweep(TargetAngle); 
-        TargetDist = getDistance();
+        Sweep(TargetAngle, TargetDist); 
     }
     if (TargetDist > 2.0 && TargetDist <= 12.0)
     {
@@ -389,8 +592,7 @@ void Option2(char optionstate, char keypressed, bool initdisplay)
         delay(500); 
         SeekDrive(TargetDist);
     }
-    Sweep(TargetAngle); 
-    TargetDist = getDistance();
+    Sweep(TargetAngle, TargetDist);
     ledcWrite(lpwmChannel, 0); 
     ledcWrite(rpwmChannel, 0); 
     UpdateDisplay2((int)TargetDist, (int)TargetAngle);
@@ -604,18 +806,31 @@ void ShowDisplay(screen val, char optionstate, char keypressed, bool initdisplay
    
     if (val == SC_MAIN)
     {
-         //
         //  Initialize the display
-        //
         oLCD.LCDInitialize(LANDSCAPE, initdisplay);
         oLCD.print("SELECT OPTION", 10, 10);
-        oLCD.print("1. CALIBRATE DRIVE", 10, 24);
-        oLCD.setTextColor(RCB_RED); 
-        oLCD.print("2. SEEK TARGET", 10, 38);
-        oLCD.setTextColor(RCB_WHITE); 
+        oLCD.print("1. CALIBRATE DRIVE", 10, 24); 
         oLCD.print("3. LOCATE TARGET", 10, 52);
-        oLCD.setTextColor(RCB_RED);
-        oLCD.print("4. NAVIGATE", 10, 66);
+
+        if (option1done == false && option3done == false)
+        {
+            oLCD.setTextColor(RCB_RED); 
+            oLCD.print("2. SEEK TARGET", 10, 38);
+            oLCD.print("4. NAVIGATE", 10, 66);
+        }
+        else if (option1done == true && option3done == false)
+        {
+            oLCD.setTextColor(RCB_WHITE); 
+            oLCD.print("2. SEEK TARGET", 10, 38);
+            oLCD.setTextColor(RCB_RED);
+            oLCD.print("4. NAVIGATE", 10, 66);
+        }
+        else if (option1done == true && option3done == true)
+        {
+            oLCD.setTextColor(RCB_WHITE); 
+            oLCD.print("2. SEEK TARGET", 10, 38);
+            oLCD.print("4. NAVIGATE", 10, 66);
+        }
     }
     if (val == SC_SUB1)
     {
@@ -814,7 +1029,85 @@ void DiffTurn(float angle) // turn if angle of robot +/- 10 degrees of centerlin
         ledcWrite(rpwmChannel, 0); 
     } 
 } 
+void Sweep(int &finalAngle, int &finalDist)
+{
+    theta_f = 0;
+    theta_r = 0;
+    targetFound = false;
+    resetSweep();
+    //forward sweep
+    for (int angle = 15; angle <= 165; angle = angle + 2)
+    {
+        servowrite(tiltpin, 0, 10);
+        servowrite(servopin, angle, 3);
+        delay(20);
+        int distance = getDistance();
+       
+        if (distance < 120){
+            if(measurementCount == 0 || angle != previousAngle + 2 || abs(distance - (totalDistance / measurementCount)) > 10){
+                saveClosestGroup();
+                resetGroup(angle);
+            }
 
+            endAngle = angle;
+            totalDistance = totalDistance + distance;
+            measurementCount++;
+            previousAngle = angle;
+            previousDistance = distance;
+        }
+    }
+
+    saveClosestGroup(); //check the final group
+    delay(100);
+    if (closestCount >= 3){
+        theta_f = closestAngle;  //need to change calc
+        d_f = closestDistance;    //need to change calc
+    }
+   
+    resetSweep();
+
+    // reverse sweep
+    for (int angle = 165; angle >= 15; angle = angle - 2)
+    {
+        servowrite(tiltpin, 0, 10);
+        servowrite(servopin, angle, 3);
+        delay(20);
+        int distance = getDistance();
+
+        if (distance < 120){
+            if(measurementCount == 0 || angle != previousAngle - 2 || abs(distance - (totalDistance / measurementCount)) > 10){
+                saveClosestGroup();
+                resetGroup(angle);
+            }
+
+            endAngle = angle;
+            totalDistance = totalDistance + distance;
+            measurementCount++;
+            previousAngle = angle;
+            previousDistance = distance;
+        }
+    }
+
+    saveClosestGroup();
+
+    if (closestCount >= 3){
+        theta_r = closestAngle;
+        d_r = closestDistance;
+    }
+
+    delay(100);
+
+    if (theta_f > 0 && theta_r > 0)
+    {
+        theta_target = (theta_f + theta_r) / 2.0;
+        d_target = (d_f + d_r) / 2.0;
+    } 
+
+    finalAngle = theta_target;
+    finalDist = d_target;  
+
+    servowrite(servopin, 90, 10);
+}
 void SeekDrive(float dist) 
 {
     int counttotarget = 0;
@@ -869,6 +1162,7 @@ void SeekDrive(float dist)
     ledcWrite(lpwmChannel, 0); 
     ledcWrite(rpwmChannel, 0);
 }
+
 // *************************************************************************************
 // END: OPTION2 SUPPORT
 // *************************************************************************************
