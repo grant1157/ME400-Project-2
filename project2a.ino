@@ -294,10 +294,10 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
                  break;
             }
          
-            DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.75; 
+            DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.77; 
             
             //Adjusting right duty cycle for error 
-            rdutyStraight = Dcycle.toInt() + (0.1 * (double)DriveError );
+            rdutyStraight = Dcycle.toInt() + (0.75 * (double)DriveError );
 
             //Failsafe duty cycle fix 
             if(rdutyStraight > 80.0)
@@ -823,10 +823,10 @@ void SeekDrive(float dist)
     
     while (leftEncoderCount < counttotarget)
     { 
-        DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.75; 
+        DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.77; 
             
         //Adjusting right duty cycle for error 
-        rdutyStraight = 60.0 + (0.1 * (double)DriveError );
+        rdutyStraight = 60.0 + (0.75 * (double)DriveError );
 
         //Failsafe duty cycle fix 
         if(rdutyStraight > 70.0)
