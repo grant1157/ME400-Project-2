@@ -51,54 +51,12 @@ const double correctingfactor = 0;
 unsigned long lastleftpulse = 0;
 unsigned long lastrightpulse = 0;
  
-
-//option 3
-//option 3 global variables
-float yC = 0;
-float xC = 0;
-float rInner = 0;
-float rOuter = 60;
-float radians = 0;
-float scaledDistance = 0;
-int startAngle = 0;
-int endAngle = 0;
-float totalDistance = 0;
-int measurementCount = 0;
-// final object loccation
-float theta_f = 0;
-float d_f = 0;
-float theta_r = 0;
-float d_r = 0;
-float theta_target = 0;   //final angle target
-float d_target = 0;       //final distance of target
-int previousAngle = 0;
-int previousDistance = 120; //initialize previousDistance to 120cm
-float closestDistance = 120;
-float closestAngle = 0;
-int closestCount = 0;
-int closestStartAngle = 0;
-int closestEndAngle = 0;
-// option 3 disable option #4
-bool targetFound = false;
-
-
-//option 4
-bool option1done = false;
-bool option3done =  false;
-int storedDuty = 0;
-float targAng = 0;
-float targDist = 0;
-
-const double pivotOffset = 2.0; //dist of from pan tilt assembly to wheel
-const double wheelBase = 11.1; //center to center of wheels in cm
-
-
-
 //functions
 void degreeIncrements();
 void servowrite(int pin, int angle, int numpulses);
 int calculateDistance(int tPin, int ePin);
 void radarFrame();
+void WaitForSwitch(int pin);
 
 int xyz = 0;
 //
@@ -138,6 +96,9 @@ void clearText(int32_t x, int32_t y, int32_t width, uint16_t color)
 
     oLCD.fillRect(xStart, y-6, width, 15, color);
 }
+// *************************************************************************************
+// BEGIN: USER FUNCTION
+// *************************************************************************************
 //
 //  Option1 code
 //
@@ -283,21 +244,10 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
         
         // keep going till the left wheel reaches the counttotarget
         while (leftEncoderCount < counttotarget){
-
-
-            //stops if the power button is pressed stop the motors and show the current screen
-            unsigned long newKey = oIR.GetKeyPressed();
-            if(newKey == KEY_POWER){
-                 ledcWrite(rpwmChannel, 0);
-                 ledcWrite(lpwmChannel, 0);
-
-                 break;
-            }
-         
-            DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.77; 
+            DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.75; 
             
             //Adjusting right duty cycle for error 
-            rdutyStraight = Dcycle.toInt() + (0.75 * (double)DriveError );
+            rdutyStraight = Dcycle.toInt() + (0.1 * (double)DriveError );
 
             //Failsafe duty cycle fix 
             if(rdutyStraight > 80.0)
@@ -312,16 +262,18 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
             ledcWrite(rpwmChannel, (float)rdutyStraight * maxDutyCycle / 100.0);
             UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError); 
             delay(20);        
-        }
+    }
         DriveMode = false; 
         // stops motors when target is reached
         ledcWrite(lpwmChannel, 0);
         ledcWrite(rpwmChannel, 0);
         
         UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError);
+        if (leftEncoderCount >= counttotarget)
+        {
+            option1done = true; 
+        }
         oLCD.OPTION_STATE = 'A';
-        // ignores buttons pressed when the robot was in motion
-        // oIR.GetKeyPressed();
     }
 }
 //
@@ -1040,29 +992,8 @@ void Sweep(int &finalAngle, int &finalDist)
     {
         servowrite(tiltpin, 0, 10);
         servowrite(servopin, angle, 3);
-        delay(20);
-        int distance = getDistance();
-       
-        if (distance < 120){
-            if(measurementCount == 0 || angle != previousAngle + 2 || abs(distance - (totalDistance / measurementCount)) > 10){
-                saveClosestGroup();
-                resetGroup(angle);
-            }
-
-            endAngle = angle;
-            totalDistance = totalDistance + distance;
-            measurementCount++;
-            previousAngle = angle;
-            previousDistance = distance;
-        }
-        unsigned long newKey = oIR.GetKeyPressed();
-        if (newKey == KEY_RETURN)
-    {
-        return; 
+        int distance = calculateDistance(TRIGpin, ECHOpin);
     }
-    }
-
-    saveClosestGroup(); //check the final group
     delay(100);
     if (closestCount >= 3){
         theta_f = closestAngle;  //need to change calc
@@ -1671,6 +1602,215 @@ void MoveDebtoTarget(){
 
 }
 
+void ShowTarget(){
+    char text[20];
+
+    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
+
+    sprintf(text, "TARGET DIR");
+    oLCD.print(text, CENTER, 15);
+   
+    oLCD.printNumF(theta_target, 1, CENTER, 31);
+
+    sprintf(text, "DEGREES");
+    oLCD.print(text, 90, 31);
+
+    sprintf(text, "TARGET DIST");
+    oLCD.print(text, CENTER, 47);
+
+    oLCD.printNumF(d_target, 1, CENTER, 63);
+
+    sprintf(text, "CM");
+    oLCD.print(text, 110, 63);
+}
+void currentDirection(){
+    char text[30];
+
+    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
+
+    sprintf(text, "TARGET DIR");
+    oLCD.print(text, CENTER, 15);
+
+    oLCD.printNumF(theta_target, 1, CENTER, 31);
+
+    sprintf(text, "DEGREES");
+    oLCD.print(text, 90, 31);
+
+    sprintf(text, "TARGET DIST");
+    oLCD.print(text, CENTER, 47);
+
+    oLCD.printNumF(d_target, 1, CENTER, 63);
+
+    sprintf(text, "CM");
+    oLCD.print(text, 110, 63);
+
+    sprintf(text, "CURRENT DIR");
+    oLCD.print(text, CENTER, 79);
+
+    oLCD.printNumF(theta_current, 1, CENTER, 95);
+
+    sprintf(text, "DEGREES");
+    oLCD.print(text, 90, 95);
+}
+void distanceTravelled(){
+    char text[30];
+
+    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
+
+    sprintf(text, "TARGET DIR");
+    oLCD.print(text, CENTER, 15);
+
+    oLCD.printNumF(theta_target, 1, CENTER, 31);
+
+    sprintf(text, "DEGREES");
+    oLCD.print(text, 90, 31);
+
+    sprintf(text, "TARGET DIST");
+    oLCD.print(text, CENTER, 47);
+
+    oLCD.printNumF(d_target, 1, CENTER, 63);
+
+    sprintf(text, "CM");
+    oLCD.print(text, 110, 63);
+
+    sprintf(text, "CURRENT DIR");
+    oLCD.print(text, CENTER, 79);
+
+    oLCD.printNumF(theta_current, 1, CENTER, 95);
+
+    sprintf(text, "DEGREES");
+    oLCD.print(text, 90, 95);
+
+
+    sprintf(text, "CURRENT DIST");
+    oLCD.print(text, CENTER, 111);
+
+    oLCD.printNumF(d_current, 1, CENTER, 127);
+
+    sprintf(text, "CM");
+    oLCD.print(text, 90, 127);
+}
+
+void DrivetoPivot(){
+    double circumference = pivalue * WDIA;      //pi * wheel diameter(called in option #1)
+    unsigned long counttopivot = (pivotOffset * CPR) / circumference + 0.5;  //calculate encoder counts needed to move the robot the pivot offset distance
+
+    // Reset both wheel encoders
+    leftEncoderCount = 0;
+    rightEncoderCount = 0;
+
+    // set both motors to forward direction
+    digitalWrite(lphasedir, HIGH);
+    digitalWrite(rphasedir, HIGH);
+
+    // run both motors with duty cycle of 30%
+    ledcWrite(lpwmChannel, 30 * maxDutyCycle / 100);
+    ledcWrite(rpwmChannel, 30 * maxDutyCycle / 100);
+
+    //continue moving until left encoder reaches target count
+    while(leftEncoderCount < counttopivot){                //if right encoder fixed then add another &&
+        delay(1);
+    }
+    //stop both motors
+    ledcWrite(lpwmChannel, 0);
+    ledcWrite(rpwmChannel, 0);
+
+    ShowTarget();
+
+    WaitforSwitch(sw1);
+}
+
+//wait until the switch is pressed before continuing-only waits for the switch to read LOW does not wait for you to relase the switch afterward
+void WaitforSwitch(int pin){
+    while(digitalRead(pin) == HIGH){
+        delay(10);
+    }
+}
+void TurnDebtoTarget(){
+    //Calculate angle robot needs to turn from 90 degrees
+    double turnAngle = theta_target - 90.0;
+    double circumference = pivalue * WDIA;
+    double turnDistance = (pivalue * wheelBase * abs(turnAngle)) / 360.0;
+    unsigned long counttoturn = (turnDistance * CPR) / circumference + 0.5;  
+    //Reset wheel encoder counts
+    leftEncoderCount = 0;
+    rightEncoderCount = 0;
+    // check which direction robot needs to turn
+    if(turnAngle > 0){                               // 90-165 degrees
+        digitalWrite(lphasedir, LOW);
+        digitalWrite(rphasedir, HIGH);
+    }
+    else if(turnAngle < 0){                            // 15-90 degrees
+        //Turn clockwise
+        digitalWrite(lphasedir, HIGH);
+        digitalWrite(rphasedir, LOW);
+    }
+    else{
+        theta_current = 90.0;
+        currentDirection();
+        WaitforSwitch(sw2);
+        return;
+    }
+    // run both motors with duty cycle of 30%
+    ledcWrite(lpwmChannel, 30 * maxDutyCycle / 100);
+    ledcWrite(rpwmChannel, 30 * maxDutyCycle / 100);
+
+    while(leftEncoderCount < counttoturn){                //if right encoder fixed then add another &&
+        delay(1);
+    }
+
+    //stop both motors
+    ledcWrite(lpwmChannel, 0);
+    ledcWrite(rpwmChannel, 0);
+
+    double actualTurnDistance = leftEncoderCount * circumference / CPR;
+    double actualTurnAngle = actualTurnDistance * 360.0 / (pivalue * wheelBase);    //converts wheel travel into degrees turned
+
+    // calc actual robot direction
+    if(turnAngle < 0){                                   //15-90 degrees
+        theta_current = 90.0 - actualTurnAngle;
+    }
+    else{
+        theta_current = 90.0 + actualTurnAngle;             //90-165 degrees
+    }
+
+    currentDirection();
+    WaitforSwitch(sw2);
+
+
+}
+
+//driving straight
+void MoveDebtoTarget(){
+    //calculate encoder counts needed to travel target distance
+    double circumference = pivalue * WDIA;                          
+    unsigned long counttotarget = (d_target * CPR) / circumference + 0.5;
+
+    //Reset wheel encoder counts
+    leftEncoderCount = 0;
+    rightEncoderCount = 0;
+
+    //set both motors to forward direction
+    digitalWrite(lphasedir, HIGH);  //left motor's direction
+    digitalWrite(rphasedir, HIGH);  //right motor's direction
+
+    // start motors using saved duty cycles
+    double rduty = rdutyStraight;
+    ledcWrite(lpwmChannel, storedDuty * maxDutyCycle / 100.0);
+    ledcWrite(rpwmChannel, rduty * maxDutyCycle / 100.0);
+
+    // continue driving until target encoder count is reached
+    while(leftEncoderCount < counttotarget){
+        delay(1);
+    }
+    //stop both motors after reaching target
+    ledcWrite(lpwmChannel,0);
+    ledcWrite(rpwmChannel, 0);
+     //calculates average wheel encoder count
+    d_current = leftEncoderCount * circumference / CPR;
+    distanceTravelled();
+    WaitforSwitch(sw3);
+}
 // *************************************************************************************
 // END: OPTION4 SUPPORT
 // *************************************************************************************
