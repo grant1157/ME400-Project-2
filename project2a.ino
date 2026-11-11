@@ -497,10 +497,10 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
                  break;
             }
          
-            DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.77; 
+            DriveError = (long)leftEncoderCount - (long)rightEncoderCount ; 
             
             //Adjusting right duty cycle for error 
-            rdutyStraight = Dcycle.toInt() + (0.075 * (double)DriveError);
+            rdutyStraight = Dcycle.toInt() + (1.25 * (double)DriveError);
 
             //Failsafe duty cycle fix 
             if(rdutyStraight > 80.0)
@@ -1055,6 +1055,11 @@ void Sweep(int &finalAngle, int &finalDist)
             previousAngle = angle;
             previousDistance = distance;
         }
+        unsigned long newKey = oIR.GetKeyPressed();
+        if (newKey == KEY_RETURN)
+    {
+        return; 
+    }
     }
 
     saveClosestGroup(); //check the final group
@@ -1138,10 +1143,10 @@ void SeekDrive(float dist)
     
     while (leftEncoderCount < counttotarget)
     { 
-        DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.77; 
+        DriveError = (long)leftEncoderCount - (long)rightEncoderCount ; 
             
         //Adjusting right duty cycle for error 
-        rdutyStraight = 60.0 + (0.75 * (double)DriveError );
+        rdutyStraight = 60.0 + (1.25 * (double)DriveError );
 
         //Failsafe duty cycle fix 
         if(rdutyStraight > 70.0)
