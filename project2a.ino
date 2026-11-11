@@ -45,7 +45,7 @@ const double WDIA = 6.5; // wheel diameter(cm)
 const double CPR = 20.0; // counts on the encoder per full wheel rotation
 const double TG = 100.0; // distance used in the calibration run (cm)
 double rdutyStraight = 0.0;    // right dutycycle
-const double correctingfactor = 0;
+
 
 
 unsigned long lastleftpulse = 0;
@@ -56,7 +56,7 @@ void degreeIncrements();
 void servowrite(int pin, int angle, int numpulses);
 int calculateDistance(int tPin, int ePin);
 void radarFrame();
-void WaitForSwitch(int pin);
+void WaitforSwitch(int pin);
 
 int xyz = 0;
 //
@@ -244,10 +244,13 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
         
         // keep going till the left wheel reaches the counttotarget
         while (leftEncoderCount < counttotarget){
-            DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 0.75; 
+            DriveError = (long)leftEncoderCount - (long)rightEncoderCount * 1.1; 
             
+           
             //Adjusting right duty cycle for error 
-            rdutyStraight = Dcycle.toInt() + (0.1 * (double)DriveError );
+                rdutyStraight = Dcycle.toInt() + (0.75 * (double)DriveError );
+            
+
 
             //Failsafe duty cycle fix 
             if(rdutyStraight > 80.0)
@@ -276,211 +279,9 @@ void Option1(char optionstate, char keypressed, bool initdisplay)
         oLCD.OPTION_STATE = 'A';
     }
 }
-//
-//  Option2 code
-//
+
 void ShowDisplay(screen val, char optionstate, char keypressed, bool initdisplay = false);
-// *************************************************************************************
-// BEGIN: USER FUNCTION
-// *************************************************************************************
-void clearText(int32_t x, int32_t y, int32_t width, uint16_t color)
-{
-    int32_t xStart;
 
-    if (x == CENTER)
-        xStart = (oLCD.width() - width) / 2;
-    else
-        xStart = x;
-
-    oLCD.fillRect(xStart, y-6, width, 15, color);
-}
-//
-//  Option1 code
-//
-void Option1(char optionstate, char keypressed, bool initdisplay)
-{
-   // holds the words before they are printed
-    char text[20];
-
-    // static is important because it will stay what it previously was as we progress
-    static String Dcycle = "";
-    static bool DriveMode = false;
-
-    // clears the screen and sets the text/background colors
-    oLCD.LCDInitialize(LANDSCAPE, initdisplay);
-    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
-
-    // if return is pressed with less than 2 digits it will stay on the screen
-    if (optionstate == 'B' && Dcycle.length() != 2)
-    {
-        // A for entry screen code
-        optionstate = 'A';
-        oLCD.OPTION_STATE = 'A';
-    }
-    
-    if(DriveMode == true)
-    {
-        optionstate = 'B'; 
-    }
-
-    if (optionstate == 'A')
-    {
-        // entry screen text
-        sprintf(text, "DUTY CYCLE");
-        oLCD.print(text, CENTER, 15);
-        sprintf(text, "PRESS");
-        oLCD.print(text, CENTER, 52);
-        sprintf(text, "<RETURN>");
-        oLCD.print(text, CENTER, 68);
-        sprintf(text, "WHEN");
-        oLCD.print(text, CENTER, 84);
-        sprintf(text, "READY");
-        oLCD.print(text, CENTER, 100);
-
-        // Option 1 was opened the first time
-        if (keypressed == ' ')
-        {
-            Dcycle = "";
-            clearText(CENTER, 32, 48, RCB_BLACK);
-        }
-        // ignores return if less than 2 digits. Repastes what was already typed
-        else if (keypressed == 'R' && Dcycle.length() != 2)
-        {
-            clearText(CENTER, 32, 48, RCB_BLACK);
-            if (Dcycle.length() > 0)
-            {
-                oLCD.setBackColor(RCB_BLACK);
-                oLCD.printNumI(Dcycle.toInt(), CENTER, 32, 3, ' ');
-            }
-        }
-        // If key besides RETURN is pressed
-        else
-        {
-            // deletes the last digit
-            if (keypressed == 'B')
-            {
-                if (Dcycle.length() > 0)
-                {
-                    Dcycle.remove(Dcycle.length() - 1);
-                }
-            }
-            // conditional to check that the number is valid
-            else if (Dcycle.length() == 0)
-            {
-                if (keypressed == '0' || keypressed == '1' || keypressed == '2' || keypressed == '3' || keypressed == '8' || keypressed == '9')
-                {
-                    Dcycle = "";
-                }
-                else if (keypressed == '4' || keypressed == '5' || keypressed == '6' || keypressed == '7')
-                {
-                    Dcycle = Dcycle + keypressed;
-                }
-                else if (keypressed == 'B')
-                {
-                    Dcycle = "";
-                }
-            }
-            else if (Dcycle == "7" && keypressed != ' ' && keypressed != 'B') // Default every 2-digit # starting with 7 to 70
-            {
-                Dcycle = "70";
-            }
-            else if (Dcycle == "4" && keypressed != ' ' || Dcycle == "5" && keypressed != ' ' || Dcycle == "6" && keypressed != ' ') // Build string with #s
-            {
-                if (keypressed != 'B')
-                {
-                    Dcycle = Dcycle + keypressed;
-                }
-            }
-            else if (Dcycle.length() == 2) // #s above 2-digits not allowed
-            {
-                Dcycle = Dcycle;
-            }
-
-            // shows a blankbox after things are deleated
-            clearText(CENTER, 32, 20, RCB_BLACK);
-            if (Dcycle.length() > 0)
-            {
-
-                oLCD.setBackColor(RCB_BLACK);
-                oLCD.printNumI(Dcycle.toInt(), CENTER, 32, 3, ' ');
-            }
-        }
-    }
-    // second screen of option 1
-    else if (optionstate == 'B')
-    {
-        // circumference (cm)
-        double circumference = pivalue * WDIA;
-        // equation to store the number of counts needed to reach the target
-        const unsigned long counttotarget = (((double)TG * (double)CPR) / (double)circumference);
-        
-        // resets Encoder Counts
-        leftEncoderCount = 0;
-        rightEncoderCount = 0;
-            // moves both motors forward at the set duty cycle
-            digitalWrite(lphasedir, HIGH);
-            digitalWrite(rphasedir, HIGH);
-            
-            // left motor stays at the entered duty for the entire run
-            ledcWrite(lpwmChannel, (float)Dcycle.toInt() * maxDutyCycle / 100.0);
-            // right motor starts at the entered duty then will be corrected
-            rdutyStraight = (float)Dcycle.toInt(); 
-            ledcWrite(rpwmChannel, rdutyStraight * maxDutyCycle / 100.0);
-
-            // uses sprintf to copy the words into text in the form of a char array. Then prints the screen text
-            sprintf(text, "RIGHT DUTY CYCLE");
-            oLCD.print(text, CENTER, 10);
-            sprintf(text, "LEFT COUNT");
-            oLCD.print(text, CENTER, 38);
-            sprintf(text, "RIGHT COUNT");
-            oLCD.print(text, CENTER, 66);
-            sprintf(text, "ERROR");
-            oLCD.print(text, CENTER, 94);
-        
-        // keep going till the left wheel reaches the counttotarget
-        while (leftEncoderCount < counttotarget)
-        {
-            //stops if the power button is pressed stop the motors and show the current screen
-            unsigned long newKey = oIR.GetKeyPressed();
-            if(newKey == KEY_POWER){
-                 ledcWrite(rpwmChannel, 0);
-                 ledcWrite(lpwmChannel, 0);
-
-                 break;
-            }
-         
-            DriveError = (long)leftEncoderCount - (long)rightEncoderCount ; 
-            
-            //Adjusting right duty cycle for error 
-            rdutyStraight = Dcycle.toInt() + (1.25 * (double)DriveError);
-
-            //Failsafe duty cycle fix 
-            if(rdutyStraight > 80.0)
-            {
-                rdutyStraight = 80.0; 
-            } 
-            else if (rdutyStraight < 20.0)
-            {
-                rdutyStraight = 20.0; 
-            }
-
-            ledcWrite(rpwmChannel, (float)rdutyStraight * maxDutyCycle / 100.0);
-            UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError); 
-            delay(20);        
-    }
-        DriveMode = false; 
-        // stops motors when target is reached
-        ledcWrite(lpwmChannel, 0);
-        ledcWrite(rpwmChannel, 0);
-        
-        UpdateDisplay(rdutyStraight, (int)leftEncoderCount, (int)rightEncoderCount, DriveError);
-        if (leftEncoderCount >= counttotarget)
-        {
-            option1done = true; 
-        }
-        oLCD.OPTION_STATE = 'A';
-    }
-}
 //
 //  Option2 code
 //
@@ -518,16 +319,6 @@ void Option2(char optionstate, char keypressed, bool initdisplay)
     {
         UpdateDisplay2((int)TargetDist, (int)TargetAngle); 
 
-        // Stops if the return button is pressed stop the motors and returns to main menu
-        unsigned long newKey = oIR.GetKeyPressed();
-        if (newKey == KEY_RETURN)
-        {
-            ledcWrite(rpwmChannel, 0);
-            ledcWrite(lpwmChannel, 0);
-
-            ShowDisplay(SC_MAIN, ' ', ' ');
-            return; 
-        }
 
         // Sequence of turn towards target, move Deb towards target, scan for target, 
         DiffTurn(TargetAngle);
@@ -791,8 +582,8 @@ void ShowDisplay(screen val, char optionstate, char keypressed, bool initdisplay
     }
     else if (val == SC_SUB2)
     {
-        //Serial.println("option2");
-        //Option2(optionstate, keypressed, initdisplay);
+        Serial.println("option2");
+        Option2(optionstate, keypressed, initdisplay);
     }
     else if (val == SC_SUB3)
     {
@@ -801,8 +592,8 @@ void ShowDisplay(screen val, char optionstate, char keypressed, bool initdisplay
     }
     else if (val == SC_SUB4)
     {
-        //Serial.println("option4");
-        //Option4(optionstate, keypressed, initdisplay);
+        Serial.println("option4");
+        Option4(optionstate, keypressed, initdisplay);
     }
 }
 // *************************************************************************************
@@ -887,6 +678,23 @@ void DisplayRotatedText(int x, int y){
 
     spr.deleteSprite();
 }
+// Stops if the return button is pressed stop the motors and returns to main menu
+bool CheckReturn(){
+    unsigned long key = oIR.GetKeyPressed();
+
+    if (key == KEY_RETURN)
+    {
+        ledcWrite(lpwmChannel, 0);
+        ledcWrite(rpwmChannel, 0);
+
+        ShowDisplay(SC_MAIN, ' ', ' ');
+
+        return true;
+    }
+
+    return false;
+}
+       
 // *************************************************************************************
 // END: UTILITY FUNCTIONS
 // *************************************************************************************
@@ -993,11 +801,20 @@ void Sweep(int &finalAngle, int &finalDist)
         servowrite(tiltpin, 0, 10);
         servowrite(servopin, angle, 3);
         int distance = calculateDistance(TRIGpin, ECHOpin);
+        
+        if (CheckReturn()){
+        return;
+        }
+
     }
     delay(100);
     if (closestCount >= 3){
         theta_f = closestAngle;  //need to change calc
         d_f = closestDistance;    //need to change calc
+
+        if (CheckReturn()){
+        return;
+        }
     }
    
     resetSweep();
@@ -1009,6 +826,10 @@ void Sweep(int &finalAngle, int &finalDist)
         servowrite(servopin, angle, 3);
         delay(20);
         int distance = getDistance();
+
+        if (CheckReturn()){
+        return;
+        }
 
         if (distance < 120){
             if(measurementCount == 0 || angle != previousAngle - 2 || abs(distance - (totalDistance / measurementCount)) > 10){
@@ -1074,7 +895,11 @@ void SeekDrive(float dist)
     
     while (leftEncoderCount < counttotarget)
     { 
-        DriveError = (long)leftEncoderCount - (long)rightEncoderCount ; 
+        if (CheckReturn()){
+        return;
+        }
+        
+        DriveError = (long)leftEncoderCount - (long)rightEncoderCount; 
             
         //Adjusting right duty cycle for error 
         rdutyStraight = 60.0 + (1.25 * (double)DriveError );
@@ -1602,215 +1427,8 @@ void MoveDebtoTarget(){
 
 }
 
-void ShowTarget(){
-    char text[20];
-
-    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
-
-    sprintf(text, "TARGET DIR");
-    oLCD.print(text, CENTER, 15);
-   
-    oLCD.printNumF(theta_target, 1, CENTER, 31);
-
-    sprintf(text, "DEGREES");
-    oLCD.print(text, 90, 31);
-
-    sprintf(text, "TARGET DIST");
-    oLCD.print(text, CENTER, 47);
-
-    oLCD.printNumF(d_target, 1, CENTER, 63);
-
-    sprintf(text, "CM");
-    oLCD.print(text, 110, 63);
-}
-void currentDirection(){
-    char text[30];
-
-    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
-
-    sprintf(text, "TARGET DIR");
-    oLCD.print(text, CENTER, 15);
-
-    oLCD.printNumF(theta_target, 1, CENTER, 31);
-
-    sprintf(text, "DEGREES");
-    oLCD.print(text, 90, 31);
-
-    sprintf(text, "TARGET DIST");
-    oLCD.print(text, CENTER, 47);
-
-    oLCD.printNumF(d_target, 1, CENTER, 63);
-
-    sprintf(text, "CM");
-    oLCD.print(text, 110, 63);
-
-    sprintf(text, "CURRENT DIR");
-    oLCD.print(text, CENTER, 79);
-
-    oLCD.printNumF(theta_current, 1, CENTER, 95);
-
-    sprintf(text, "DEGREES");
-    oLCD.print(text, 90, 95);
-}
-void distanceTravelled(){
-    char text[30];
-
-    oLCD.setTextColor(RCB_WHITE, RCB_PURPLE);
-
-    sprintf(text, "TARGET DIR");
-    oLCD.print(text, CENTER, 15);
-
-    oLCD.printNumF(theta_target, 1, CENTER, 31);
-
-    sprintf(text, "DEGREES");
-    oLCD.print(text, 90, 31);
-
-    sprintf(text, "TARGET DIST");
-    oLCD.print(text, CENTER, 47);
-
-    oLCD.printNumF(d_target, 1, CENTER, 63);
-
-    sprintf(text, "CM");
-    oLCD.print(text, 110, 63);
-
-    sprintf(text, "CURRENT DIR");
-    oLCD.print(text, CENTER, 79);
-
-    oLCD.printNumF(theta_current, 1, CENTER, 95);
-
-    sprintf(text, "DEGREES");
-    oLCD.print(text, 90, 95);
 
 
-    sprintf(text, "CURRENT DIST");
-    oLCD.print(text, CENTER, 111);
-
-    oLCD.printNumF(d_current, 1, CENTER, 127);
-
-    sprintf(text, "CM");
-    oLCD.print(text, 90, 127);
-}
-
-void DrivetoPivot(){
-    double circumference = pivalue * WDIA;      //pi * wheel diameter(called in option #1)
-    unsigned long counttopivot = (pivotOffset * CPR) / circumference + 0.5;  //calculate encoder counts needed to move the robot the pivot offset distance
-
-    // Reset both wheel encoders
-    leftEncoderCount = 0;
-    rightEncoderCount = 0;
-
-    // set both motors to forward direction
-    digitalWrite(lphasedir, HIGH);
-    digitalWrite(rphasedir, HIGH);
-
-    // run both motors with duty cycle of 30%
-    ledcWrite(lpwmChannel, 30 * maxDutyCycle / 100);
-    ledcWrite(rpwmChannel, 30 * maxDutyCycle / 100);
-
-    //continue moving until left encoder reaches target count
-    while(leftEncoderCount < counttopivot){                //if right encoder fixed then add another &&
-        delay(1);
-    }
-    //stop both motors
-    ledcWrite(lpwmChannel, 0);
-    ledcWrite(rpwmChannel, 0);
-
-    ShowTarget();
-
-    WaitforSwitch(sw1);
-}
-
-//wait until the switch is pressed before continuing-only waits for the switch to read LOW does not wait for you to relase the switch afterward
-void WaitforSwitch(int pin){
-    while(digitalRead(pin) == HIGH){
-        delay(10);
-    }
-}
-void TurnDebtoTarget(){
-    //Calculate angle robot needs to turn from 90 degrees
-    double turnAngle = theta_target - 90.0;
-    double circumference = pivalue * WDIA;
-    double turnDistance = (pivalue * wheelBase * abs(turnAngle)) / 360.0;
-    unsigned long counttoturn = (turnDistance * CPR) / circumference + 0.5;  
-    //Reset wheel encoder counts
-    leftEncoderCount = 0;
-    rightEncoderCount = 0;
-    // check which direction robot needs to turn
-    if(turnAngle > 0){                               // 90-165 degrees
-        digitalWrite(lphasedir, LOW);
-        digitalWrite(rphasedir, HIGH);
-    }
-    else if(turnAngle < 0){                            // 15-90 degrees
-        //Turn clockwise
-        digitalWrite(lphasedir, HIGH);
-        digitalWrite(rphasedir, LOW);
-    }
-    else{
-        theta_current = 90.0;
-        currentDirection();
-        WaitforSwitch(sw2);
-        return;
-    }
-    // run both motors with duty cycle of 30%
-    ledcWrite(lpwmChannel, 30 * maxDutyCycle / 100);
-    ledcWrite(rpwmChannel, 30 * maxDutyCycle / 100);
-
-    while(leftEncoderCount < counttoturn){                //if right encoder fixed then add another &&
-        delay(1);
-    }
-
-    //stop both motors
-    ledcWrite(lpwmChannel, 0);
-    ledcWrite(rpwmChannel, 0);
-
-    double actualTurnDistance = leftEncoderCount * circumference / CPR;
-    double actualTurnAngle = actualTurnDistance * 360.0 / (pivalue * wheelBase);    //converts wheel travel into degrees turned
-
-    // calc actual robot direction
-    if(turnAngle < 0){                                   //15-90 degrees
-        theta_current = 90.0 - actualTurnAngle;
-    }
-    else{
-        theta_current = 90.0 + actualTurnAngle;             //90-165 degrees
-    }
-
-    currentDirection();
-    WaitforSwitch(sw2);
-
-
-}
-
-//driving straight
-void MoveDebtoTarget(){
-    //calculate encoder counts needed to travel target distance
-    double circumference = pivalue * WDIA;                          
-    unsigned long counttotarget = (d_target * CPR) / circumference + 0.5;
-
-    //Reset wheel encoder counts
-    leftEncoderCount = 0;
-    rightEncoderCount = 0;
-
-    //set both motors to forward direction
-    digitalWrite(lphasedir, HIGH);  //left motor's direction
-    digitalWrite(rphasedir, HIGH);  //right motor's direction
-
-    // start motors using saved duty cycles
-    double rduty = rdutyStraight;
-    ledcWrite(lpwmChannel, storedDuty * maxDutyCycle / 100.0);
-    ledcWrite(rpwmChannel, rduty * maxDutyCycle / 100.0);
-
-    // continue driving until target encoder count is reached
-    while(leftEncoderCount < counttotarget){
-        delay(1);
-    }
-    //stop both motors after reaching target
-    ledcWrite(lpwmChannel,0);
-    ledcWrite(rpwmChannel, 0);
-     //calculates average wheel encoder count
-    d_current = leftEncoderCount * circumference / CPR;
-    distanceTravelled();
-    WaitforSwitch(sw3);
-}
 // *************************************************************************************
 // END: OPTION4 SUPPORT
-// *************************************************************************************
+// ********************************************************************************************
