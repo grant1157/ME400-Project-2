@@ -1,0 +1,130 @@
+
+I method:
+double Kp = 0.5;
+double Ki = 0.1;
+
+double integral = 0;
+
+unsigned long previousTime = millis();
+
+unsigned long previousLeftCount = 0;
+unsigned long previousRightCount = 0;
+
+while (leftEncoderCount < counttotarget)
+{
+    unsigned long currentTime = millis();
+
+    if (currentTime - previousTime >= 100)
+    {
+        unsigned long currentLeft = leftEncoderCount;
+        unsigned long currentRight = rightEncoderCount;
+
+        // Calculate encoder changes
+        long leftChange = currentLeft - previousLeftCount;
+        long rightChange = currentRight - previousRightCount;
+
+        // Calculate speed error
+        double error = leftChange - rightChange;
+
+        // Calculate elapsed time in seconds
+        double dt = (currentTime - previousTime) / 1000.0;
+
+        // Integral accumulation
+        integral += error * dt;
+
+        // Prevent integral windup
+        if (integral > 50)
+            integral = 50;
+
+        if (integral < -50)
+            integral = -50;
+
+        // PI correction
+        double correction = (Kp * error) + (Ki * integral);
+
+        // Only adjust right motor
+        rdutyStraight = Dcycle.toInt() + correction;
+
+        // Limit duty cycle
+        if (rdutyStraight > 80)
+            rdutyStraight = 80;
+
+        if (rdutyStraight < 20)
+            rdutyStraight = 20;
+
+        ledcWrite(rpwmChannel,
+            rdutyStraight * maxDutyCycle / 100.0);
+
+        // Update previous values
+        previousLeftCount = currentLeft;
+        previousRightCount = currentRight;
+        previousTime = currentTime;
+
+        UpdateDisplay(rdutyStraight,
+            currentLeft,
+            currentRight,
+            error);
+    }
+}
+
+D method:
+double Kp = 1.0;
+double Kd = 0.0;  // Start with derivative disabled
+
+double previousError = 0;
+unsigned long previousTime = millis();
+
+unsigned long previousLeftCount = 0;
+unsigned long previousRightCount = 0;
+
+while (leftEncoderCount < counttotarget)
+{
+    unsigned long currentTime = millis();
+
+    if (currentTime - previousTime >= 100)
+    {
+        // Get current encoder readings
+        unsigned long currentLeft = leftEncoderCount;
+        unsigned long currentRight = rightEncoderCount;
+
+        // Calculate encoder changes
+        long leftChange = currentLeft - previousLeftCount;
+        long rightChange = currentRight - previousRightCount;
+
+        // Calculate speed error
+        double error = leftChange - rightChange;
+
+        // Calculate derivative
+        double dt = (currentTime - previousTime) / 1000.0;
+
+        double derivative = (error - previousError) / dt;
+
+        // Calculate PD correction
+        double correction = (Kp * error) + (Kd * derivative);
+
+        // Adjust ONLY the right motor
+        rdutyStraight = Dcycle.toInt() + correction;
+
+        // Duty cycle limits
+        if (rdutyStraight > 80.0)
+            rdutyStraight = 80.0;
+
+        else if (rdutyStraight < 20.0)
+            rdutyStraight = 20.0;
+
+        // Apply right motor correction
+        ledcWrite(rpwmChannel,
+            rdutyStraight * maxDutyCycle / 100.0);
+
+        // Save previous readings
+        previousLeftCount = currentLeft;
+        previousRightCount = currentRight;
+        previousError = error;
+        previousTime = currentTime;
+
+        UpdateDisplay(rdutyStraight,
+            currentLeft,
+            currentRight,
+            error);
+    }
+}
