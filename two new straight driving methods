@@ -12,7 +12,9 @@ unsigned long previousLeftCount = 0;
 unsigned long previousRightCount = 0;
 
 
-in option 1: // pi FUN FUN FUN (sets to 0)
+in option 1: 
+
+// pi FUN FUN FUN (sets to 0)
         integral = 0;
         previousLeftCount = 0;
         previousRightCount = 0;
