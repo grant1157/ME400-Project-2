@@ -1,130 +1,105 @@
+New globals:
 
-I method:
+// Option 1 PI controller variables
 double Kp = 0.5;
 double Ki = 0.1;
 
 double integral = 0;
 
-unsigned long previousTime = millis();
+unsigned long previousTime = 0;
 
 unsigned long previousLeftCount = 0;
 unsigned long previousRightCount = 0;
 
-while (leftEncoderCount < counttotarget)
-{
-    unsigned long currentTime = millis();
 
-    if (currentTime - previousTime >= 100)
-    {
-        unsigned long currentLeft = leftEncoderCount;
-        unsigned long currentRight = rightEncoderCount;
+in option 1: // pi FUN FUN FUN (sets to 0)
+        integral = 0;
+        previousLeftCount = 0;
+        previousRightCount = 0;
+        previousTime = millis();
 
-        // Calculate encoder changes
-        long leftChange = currentLeft - previousLeftCount;
-        long rightChange = currentRight - previousRightCount;
+        // keep going till the left wheel reaches the counttotarget
+        while (leftEncoderCount < counttotarget)
+        {
+            //makes a new long holding the current time 
+            unsigned long currentTime = millis();
 
-        // Calculate speed error
-        double error = leftChange - rightChange;
+            // Updates the motor motor correction every 100 milliseconds
+            if (currentTime - previousTime >= 100)
+            {
+                //holds the current left and right value = to the right and left encoder counts
+                unsigned long currentLeft = leftEncoderCount;
+                unsigned long currentRight = rightEncoderCount;
 
-        // Calculate elapsed time in seconds
-        double dt = (currentTime - previousTime) / 1000.0;
+                // Calculate encoder changes from the previous count to the current
+                long leftChange = (long)(currentLeft - previousLeftCount);
+                long rightChange = (long)(currentRight - previousRightCount);
 
-        // Integral accumulation
-        integral += error * dt;
+                // Calculate error from the change
+                DriveError = leftChange - rightChange;
 
-        // Prevent integral windup
-        if (integral > 50)
-            integral = 50;
+                // Calculate elapsed time in seconds
+                double dt = (currentTime - previousTime) / 1000.0;
 
-        if (integral < -50)
-            integral = -50;
+                // the integral tries to measure how much faster or slower a wheel has been from the other
+                integral += DriveError * dt;
 
-        // PI correction
-        double correction = (Kp * error) + (Ki * integral);
+                // if the integral part keeps accumulating error for too long it will start to over correct these conditionals stop that
+                if (integral > 40)
+                {
+                    integral = 40;
+                }
+                else if (integral < -40)
+                {
+                    integral = -40;
+                }
 
-        // Only adjust right motor
-        rdutyStraight = Dcycle.toInt() + correction;
+                // Calculate TOTAL PI correction
+                double correction = (Kp * DriveError) + (Ki * integral);
 
-        // Limit duty cycle
-        if (rdutyStraight > 80)
-            rdutyStraight = 80;
+                // Adjust right motor duty cycle based on the correction calculated from the error kp & integral and KI
+                rdutyStraight = Dcycle.toInt() + correction;
 
-        if (rdutyStraight < 20)
-            rdutyStraight = 20;
+                // Failsafe duty cycle conditionals
+                if (rdutyStraight > 80.0)
+                {
+                    rdutyStraight = 80.0;
+                }
+                else if (rdutyStraight < 20.0)
+                {
+                    rdutyStraight = 20.0;
+                }
 
-        ledcWrite(rpwmChannel,
-            rdutyStraight * maxDutyCycle / 100.0);
+                // Update right motor 
+                ledcWrite(rpwmChannel, rdutyStraight * maxDutyCycle / 100.0);
 
-        // Update previous values
-        previousLeftCount = currentLeft;
-        previousRightCount = currentRight;
-        previousTime = currentTime;
+                // Update display
+                UpdateDisplay(rdutyStraight, (int)currentLeft, (int)currentRight, DriveError);
 
-        UpdateDisplay(rdutyStraight,
-            currentLeft,
-            currentRight,
-            error);
+                // Prints the screen info
+                Serial.print("Left: ");
+                Serial.print(currentLeft);
+
+                Serial.print(" Right: ");
+                Serial.print(currentRight);
+
+                Serial.print(" Error: ");
+                Serial.print(DriveError);
+
+                Serial.print(" Integral: ");
+                Serial.print(integral);
+
+                Serial.print(" Right Duty: ");
+                Serial.println(rdutyStraight);
+
+                // Saves previous encoder counts and time for the next loop :)
+                previousLeftCount = currentLeft;
+                previousRightCount = currentRight;
+                previousTime = currentTime;
+            }
+         
+        }
+            // stops once done
+            ledcWrite(lpwmChannel, 0);
+            ledcWrite(rpwmChannel, 0);
     }
-}
-
-D method:
-double Kp = 1.0;
-double Kd = 0.0;  // Start with derivative disabled
-
-double previousError = 0;
-unsigned long previousTime = millis();
-
-unsigned long previousLeftCount = 0;
-unsigned long previousRightCount = 0;
-
-while (leftEncoderCount < counttotarget)
-{
-    unsigned long currentTime = millis();
-
-    if (currentTime - previousTime >= 100)
-    {
-        // Get current encoder readings
-        unsigned long currentLeft = leftEncoderCount;
-        unsigned long currentRight = rightEncoderCount;
-
-        // Calculate encoder changes
-        long leftChange = currentLeft - previousLeftCount;
-        long rightChange = currentRight - previousRightCount;
-
-        // Calculate speed error
-        double error = leftChange - rightChange;
-
-        // Calculate derivative
-        double dt = (currentTime - previousTime) / 1000.0;
-
-        double derivative = (error - previousError) / dt;
-
-        // Calculate PD correction
-        double correction = (Kp * error) + (Kd * derivative);
-
-        // Adjust ONLY the right motor
-        rdutyStraight = Dcycle.toInt() + correction;
-
-        // Duty cycle limits
-        if (rdutyStraight > 80.0)
-            rdutyStraight = 80.0;
-
-        else if (rdutyStraight < 20.0)
-            rdutyStraight = 20.0;
-
-        // Apply right motor correction
-        ledcWrite(rpwmChannel,
-            rdutyStraight * maxDutyCycle / 100.0);
-
-        // Save previous readings
-        previousLeftCount = currentLeft;
-        previousRightCount = currentRight;
-        previousError = error;
-        previousTime = currentTime;
-
-        UpdateDisplay(rdutyStraight,
-            currentLeft,
-            currentRight,
-            error);
-    }
-}
